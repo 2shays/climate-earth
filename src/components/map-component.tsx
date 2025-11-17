@@ -76,12 +76,7 @@ export default function MapComponent({ regionTemperatureData }: MapComponentProp
   const mapInstance = useRef<Map | null>(null);
   const regionsLayer = useRef<VectorLayer<VectorSource<Feature<Geometry>>> | null>(null);
   const highlightLayer = useRef<VectorLayer<VectorSource<Feature<Geometry>>> | null>(null);
-  const temperatureDataRef = useRef(regionTemperatureData);
-
-  useEffect(() => {
-    temperatureDataRef.current = regionTemperatureData;
-  }, [regionTemperatureData]);
-
+  const allFeaturesRef = useRef<Feature<Geometry>[]>([]);
 
   // Initialize map
   useEffect(() => {
@@ -98,9 +93,8 @@ export default function MapComponent({ regionTemperatureData }: MapComponentProp
       source: regionsSource,
       style: (feature) => {
         const acronym = feature.get('Acronym');
-        const currentTempData = temperatureDataRef.current;
-        if (currentTempData && currentTempData.regionTemps[acronym] !== undefined) {
-          const temp = currentTempData.regionTemps[acronym];
+        if (regionTemperatureData && regionTemperatureData.regionTemps[acronym] !== undefined) {
+          const temp = regionTemperatureData.regionTemps[acronym];
           const color = getColorFromTemp(temp);
           return new Style({
             fill: new Fill({ color }),
@@ -165,7 +159,7 @@ export default function MapComponent({ regionTemperatureData }: MapComponentProp
       if (feature) {
           const regionAcronym = feature.get('Acronym');
           const regionName = feature.get('Name');
-          const temp = temperatureDataRef.current?.regionTemps[regionAcronym];
+          const temp = regionTemperatureData?.regionTemps[regionAcronym];
           
           if (temp !== undefined) {
               tooltipRef.current.innerHTML = `<b>${regionName} (${regionAcronym})</b><br>${temp.toFixed(2)}°C`;
@@ -187,7 +181,8 @@ export default function MapComponent({ regionTemperatureData }: MapComponentProp
       })
       .then(data => {
         const format = new GeoJSON({
-            featureProjection: 'EPSG:3857' // Project features to the map's projection
+            dataProjection: 'EPSG:4326',
+            featureProjection: 'EPSG:3857'
         });
         const features = format.readFeatures(data);
 
@@ -195,11 +190,12 @@ export default function MapComponent({ regionTemperatureData }: MapComponentProp
         features.sort((a, b) => {
             const geomA = a.getGeometry()?.getType();
             const geomB = b.getGeometry()?.getType();
-            if (geomA === 'Polygon' && geomB === 'MultiPolygon') return -1;
-            if (geomA === 'MultiPolygon' && geomB === 'Polygon') return 1;
+            if (geomA === 'Polygon' && geomB === 'MultiPolygon') return 1;
+            if (geomA === 'MultiPolygon' && geomB === 'Polygon') return -1;
             return 0;
         });
 
+        allFeaturesRef.current = features;
         regionsSource.addFeatures(features);
       })
       .catch(error => {
@@ -210,11 +206,17 @@ export default function MapComponent({ regionTemperatureData }: MapComponentProp
       mapInstance.current?.setTarget(undefined);
       mapInstance.current = null;
     };
-  }, []);
+  }, []); // Empty dependency array ensures this runs once on mount. Tooltip logic depends on regionTemperatureData, which is handled in the other effect.
 
   useEffect(() => {
-    if (regionsLayer.current) {
-        regionsLayer.current.getSource()?.changed();
+    const source = regionsLayer.current?.getSource();
+    if (source && regionTemperatureData && allFeaturesRef.current.length > 0) {
+        source.clear();
+        const featuresWithData = allFeaturesRef.current.filter(feature => {
+            const acronym = feature.get('Acronym');
+            return regionTemperatureData.regionTemps[acronym] !== undefined;
+        });
+        source.addFeatures(featuresWithData);
     }
   }, [regionTemperatureData]);
 
