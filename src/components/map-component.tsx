@@ -142,7 +142,7 @@ export default function MapComponent({ regionTemperatureData }: MapComponentProp
       positioning: 'center-left',
     });
 
-    const mapExtent = fromLonLat([-180, -90]).concat(fromLonLat([180, 90]));
+    const mapExtent = fromLonLat([-180, -85.06]).concat(fromLonLat([180, 85.06]));
 
     mapInstance.current = new Map({
       target: mapRef.current,
