@@ -140,14 +140,17 @@ export default function MapComponent({ regionTemperatureData }: MapComponentProp
       const feature = mapInstance.current!.forEachFeatureAtPixel(pixel, f => f, {
           layerFilter: l => l === regionsLayer.current,
       });
+      
+      const highlightSource = highlightLayer.getSource();
+      if (!highlightSource) return;
 
       if (selectedFeature.current) {
-        highlightLayer.getSource()?.removeFeature(selectedFeature.current as Feature<Geometry>);
+        highlightSource.removeFeature(selectedFeature.current as Feature<Geometry>);
       }
       
       if (feature) {
           selectedFeature.current = feature;
-          highlightLayer.getSource()?.addFeature(feature as Feature<Geometry>);
+          highlightSource.addFeature(feature as Feature<Geometry>);
           
           const regionAcronym = feature.get('Acronym');
           const regionName = feature.get('Name');
@@ -188,11 +191,12 @@ export default function MapComponent({ regionTemperatureData }: MapComponentProp
       mapInstance.current?.setTarget(undefined);
       mapInstance.current = null;
     };
-  }, []); // Only run on initial mount
+  }, [regionsSource, regionTemperatureData]); // Add dependencies
 
   // Update region colors based on temperature data
   useEffect(() => {
     if (regionsLayer.current) {
+        // This is the key change: it tells the layer to re-evaluate its styles.
         regionsLayer.current.getSource()?.changed();
     }
   }, [regionTemperatureData]);
