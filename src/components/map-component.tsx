@@ -16,9 +16,8 @@ import Feature from 'ol/Feature';
 import type { Geometry } from 'ol/geom';
 import type { RegionYearlyTemperatureData } from '@/lib/region-data';
 import { Overlay } from 'ol';
-import { pointerMove } from 'ol/events/condition';
-import Select from 'ol/interaction/Select';
 import type { MapBrowserEvent } from 'ol';
+import type { FeatureLike } from 'ol/Feature';
 
 type MapComponentProps = {
   regionTemperatureData: RegionYearlyTemperatureData | undefined;
@@ -71,6 +70,9 @@ const highlightStyle = new Style({
     color: 'rgba(255, 255, 255, 0.9)',
     width: 2,
   }),
+  fill: new Fill({
+      color: 'rgba(255, 255, 255, 0.2)'
+  })
 });
 
 export default function MapComponent({ regionTemperatureData }: MapComponentProps) {
@@ -79,6 +81,7 @@ export default function MapComponent({ regionTemperatureData }: MapComponentProp
   const mapInstance = useRef<Map | null>(null);
   const regionsLayer = useRef<VectorLayer<VectorSource<Feature<Geometry>>> | null>(null);
   const [regionsSource] = useState(new VectorSource());
+  const selectedFeature = useRef<FeatureLike | null>(null);
 
   // Initialize map
   useEffect(() => {
@@ -86,7 +89,18 @@ export default function MapComponent({ regionTemperatureData }: MapComponentProp
 
     regionsLayer.current = new VectorLayer({
       source: regionsSource,
-      style: defaultRegionStyle,
+      style: (feature) => {
+        const acronym = feature.get('Acronym');
+        if (regionTemperatureData && regionTemperatureData.regionTemps[acronym] !== undefined) {
+          const temp = regionTemperatureData.regionTemps[acronym];
+          const color = getColorFromTemp(temp);
+          return new Style({
+            fill: new Fill({ color }),
+            stroke: new Stroke({ color: 'rgba(255, 255, 255, 0.4)', width: 1 }),
+          });
+        }
+        return defaultRegionStyle;
+      },
     });
 
     const tooltipOverlay = new Overlay({
@@ -110,45 +124,45 @@ export default function MapComponent({ regionTemperatureData }: MapComponentProp
       overlays: [tooltipOverlay],
     });
 
-    const select = new Select({
-      condition: pointerMove,
-      style: (feature) => {
-        const originalStyle = feature.getStyle() as Style;
-        const highlight = highlightStyle.clone();
-        
-        if (originalStyle && originalStyle.getFill()) {
-            highlight.setFill(originalStyle.getFill());
-        }
-        
-        return highlight;
-      },
-      layers: [regionsLayer.current],
+    const highlightLayer = new VectorLayer({
+        source: new VectorSource(),
+        style: highlightStyle,
     });
-
-    mapInstance.current.addInteraction(select);
+    mapInstance.current.addLayer(highlightLayer);
 
     mapInstance.current.on('pointermove', (evt: MapBrowserEvent<UIEvent>) => {
       if (evt.dragging || !tooltipRef.current) {
+        tooltipOverlay.setPosition(undefined);
         return;
       }
       const pixel = mapInstance.current!.getEventPixel(evt.originalEvent);
-      let featureFound = false;
+      
+      const feature = mapInstance.current!.forEachFeatureAtPixel(pixel, f => f, {
+          layerFilter: l => l === regionsLayer.current,
+      });
 
-      mapInstance.current!.forEachFeatureAtPixel(pixel, (feature) => {
-        if(feature) {
+      if (selectedFeature.current) {
+        highlightLayer.getSource()?.removeFeature(selectedFeature.current as Feature<Geometry>);
+      }
+      
+      if (feature) {
+          selectedFeature.current = feature;
+          highlightLayer.getSource()?.addFeature(feature as Feature<Geometry>);
+          
           const regionAcronym = feature.get('Acronym');
+          const regionName = feature.get('Name');
           const temp = regionTemperatureData?.regionTemps[regionAcronym];
           
           if (temp !== undefined) {
-              tooltipRef.current!.innerHTML = `${regionAcronym}: ${temp.toFixed(2)}°C`;
+              tooltipRef.current!.innerHTML = `<b>${regionName} (${regionAcronym})</b><br>${temp.toFixed(2)}°C`;
               tooltipOverlay.setPosition(evt.coordinate);
-              featureFound = true;
+          } else {
+             tooltipOverlay.setPosition(undefined);
           }
-        }
-      });
-
-      tooltipRef.current!.style.display = featureFound ? 'block' : 'none';
-
+      } else {
+          selectedFeature.current = null;
+          tooltipOverlay.setPosition(undefined);
+      }
     });
     
     // Fetch custom regions
@@ -174,41 +188,14 @@ export default function MapComponent({ regionTemperatureData }: MapComponentProp
       mapInstance.current?.setTarget(undefined);
       mapInstance.current = null;
     };
-  }, [regionsSource, regionTemperatureData]);
+  }, []); // Only run on initial mount
 
   // Update region colors based on temperature data
   useEffect(() => {
-    const regionFeatures = regionsSource.getFeatures();
-    if (regionFeatures.length === 0) return;
-
-    if (!regionTemperatureData) {
-      regionFeatures.forEach(feature => feature.setStyle(defaultRegionStyle));
-      return;
+    if (regionsLayer.current) {
+        regionsLayer.current.getSource()?.changed();
     }
-
-    regionFeatures.forEach(feature => {
-      const regionAcronym = feature.get('Acronym');
-      const temp = regionTemperatureData.regionTemps[regionAcronym];
-      
-      let style = defaultRegionStyle;
-
-      if (temp !== undefined) {
-        const fillColor = getColorFromTemp(temp);
-        style = new Style({
-          fill: new Fill({
-            color: fillColor,
-          }),
-          stroke: new Stroke({
-            color: 'rgba(255, 255, 255, 0.4)',
-            width: 1,
-          }),
-        });
-      }
-      
-      feature.setStyle(style);
-    });
-
-  }, [regionTemperatureData, regionsSource]);
+  }, [regionTemperatureData]);
 
   return (
     <>
@@ -216,7 +203,7 @@ export default function MapComponent({ regionTemperatureData }: MapComponentProp
       <div 
         ref={tooltipRef} 
         className="tooltip-container bg-card/80 backdrop-blur-sm text-card-foreground p-2 rounded-md shadow-lg text-sm whitespace-nowrap"
-        style={{ position: 'absolute', display: 'none', pointerEvents: 'none' }}
+        style={{ position: 'absolute', display: 'block', pointerEvents: 'none' }}
       ></div>
     </>
   );
