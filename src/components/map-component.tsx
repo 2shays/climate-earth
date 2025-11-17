@@ -113,23 +113,14 @@ export default function MapComponent({ regionTemperatureData }: MapComponentProp
     const select = new Select({
       condition: pointerMove,
       style: (feature) => {
-        const currentStyle = feature.getStyle() as Style;
-        const newStyle = currentStyle.clone();
+        const originalStyle = feature.getStyle() as Style;
+        const highlight = highlightStyle.clone();
         
-        const existingStroke = currentStyle.getStroke();
-        if (existingStroke) {
-          highlightStyle.getStroke()?.setColor(existingStroke.getColor() || 'white');
-        } else {
-           highlightStyle.getStroke()?.setColor('white');
+        if (originalStyle && originalStyle.getFill()) {
+            highlight.setFill(originalStyle.getFill());
         }
-
-        const highlightStroke = new Stroke({
-          color: 'rgba(255, 255, 255, 0.9)',
-          width: 2,
-        });
-
-        newStyle.setStroke(highlightStroke)
-        return newStyle;
+        
+        return highlight;
       },
       layers: [regionsLayer.current],
     });
