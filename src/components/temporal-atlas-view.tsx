@@ -15,6 +15,8 @@ import { Separator } from './ui/separator';
 const SCENARIOS: { id: Scenario, name: string }[] = [
     { id: 'SSP1', name: 'SSP1: Sustainability' },
     { id: 'SSP2', name: 'SSP2: Middle of the Road' },
+    { id: 'SSP3', name: 'SSP3: Regional Rivalry' },
+    { id: 'SSP5', name: 'SSP5: Fossil-Fueled Development' },
 ];
 
 export default function TemporalAtlasView() {

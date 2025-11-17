@@ -8,12 +8,14 @@ export type RegionYearlyTemperatureData = {
   regionTemps: RegionTemperatures;
 };
 
-export type Scenario = 'SSP1' | 'SSP2';
+export type Scenario = 'SSP1' | 'SSP2' | 'SSP3' | 'SSP5';
 
 const scenarioFiles: { [key in Scenario | 'Historical']: string } = {
   'Historical': '/data/CMIP6_ACCESS-CM2_historical_r1i1p1f1.csv',
   'SSP1': '/data/CMIP6_ACCESS-CM2_ssp126_r1i1p1f1.csv',
   'SSP2': '/data/CMIP6_ACCESS-CM2_ssp245_r1i1p1f1.csv',
+  'SSP3': '/data/CMIP6_ACCESS-CM2_ssp370_r1i1p1f1.csv',
+  'SSP5': '/data/CMIP6_ACCESS-CM2_ssp585_r1i1p1f1.csv',
 };
 
 async function parseAndProcessCSV(filePath: string): Promise<{ [year: number]: RegionTemperatures }> {
@@ -71,11 +73,11 @@ async function parseAndProcessCSV(filePath: string): Promise<{ [year: number]: R
   return processedData;
 }
 
-const cachedCombinedData: { [scenario in Scenario]?: { [year: number]: RegionTemperatures } } = {};
+const cachedData: { [key: string]: { [year: number]: RegionTemperatures } } = {};
 
 async function loadAndCombineData(scenario: Scenario): Promise<{ [year: number]: RegionTemperatures }> {
-    if (cachedCombinedData[scenario]) {
-        return cachedCombinedData[scenario]!;
+    if (cachedData[scenario]) {
+        return cachedData[scenario];
     }
 
     const [historicalData, futureData] = await Promise.all([
@@ -84,7 +86,7 @@ async function loadAndCombineData(scenario: Scenario): Promise<{ [year: number]:
     ]);
     
     const combinedData = { ...historicalData, ...futureData };
-    cachedCombinedData[scenario] = combinedData;
+    cachedData[scenario] = combinedData;
     return combinedData;
 }
 
