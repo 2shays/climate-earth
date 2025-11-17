@@ -26,7 +26,7 @@ type MapComponentProps = {
 // Helper function to get color from temperature
 function getColorFromTemp(temp: number) {
   const normalizedTemp = (temp - TEMP_RANGE.min) / (TEMP_RANGE.max - TEMP_RANGE.min);
-  const alpha = 0.5; // Reduced Opacity
+  const alpha = 0.25; // Reduced Opacity
 
   // Blue (#66B2FF) -> Cyan (#7FFFD4)
   if (normalizedTemp < 0.25) {
@@ -83,19 +83,28 @@ export default function MapComponent({ regionTemperatureData }: MapComponentProp
   const tooltipRef = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<Map | null>(null);
   const regionsLayer = useRef<VectorLayer<VectorSource<Feature<Geometry>>> | null>(null);
-  const [regionsSource] = useState(new VectorSource());
-  const selectedFeature = useRef<FeatureLike | null>(null);
+  const highlightLayer = useRef<VectorLayer<VectorSource<Feature<Geometry>>> | null>(null);
+  const temperatureDataRef = useRef(regionTemperatureData);
+
+  // Keep a ref to the latest temperature data to avoid stale closures in the style function
+  useEffect(() => {
+    temperatureDataRef.current = regionTemperatureData;
+  }, [regionTemperatureData]);
+
 
   // Initialize map
   useEffect(() => {
     if (!mapRef.current || !tooltipRef.current || mapInstance.current) return;
 
+    const regionsSource = new VectorSource();
+
     regionsLayer.current = new VectorLayer({
       source: regionsSource,
       style: (feature) => {
         const acronym = feature.get('Acronym');
-        if (regionTemperatureData && regionTemperatureData.regionTemps[acronym] !== undefined) {
-          const temp = regionTemperatureData.regionTemps[acronym];
+        const currentTempData = temperatureDataRef.current;
+        if (currentTempData && currentTempData.regionTemps[acronym] !== undefined) {
+          const temp = currentTempData.regionTemps[acronym];
           const color = getColorFromTemp(temp);
           return new Style({
             fill: new Fill({ color }),
@@ -104,6 +113,11 @@ export default function MapComponent({ regionTemperatureData }: MapComponentProp
         }
         return defaultRegionStyle;
       },
+    });
+
+    highlightLayer.current = new VectorLayer({
+        source: new VectorSource(),
+        style: highlightStyle,
     });
 
     const tooltipOverlay = new Overlay({
@@ -119,6 +133,7 @@ export default function MapComponent({ regionTemperatureData }: MapComponentProp
           source: new OSM(),
         }),
         regionsLayer.current,
+        highlightLayer.current
       ],
       view: new View({
         center: fromLonLat([0, 20]),
@@ -127,11 +142,7 @@ export default function MapComponent({ regionTemperatureData }: MapComponentProp
       overlays: [tooltipOverlay],
     });
 
-    const highlightLayer = new VectorLayer({
-        source: new VectorSource(),
-        style: highlightStyle,
-    });
-    mapInstance.current.addLayer(highlightLayer);
+    let selectedFeature: FeatureLike | null = null;
 
     mapInstance.current.on('pointermove', (evt: MapBrowserEvent<UIEvent>) => {
       if (evt.dragging || !tooltipRef.current) {
@@ -144,20 +155,20 @@ export default function MapComponent({ regionTemperatureData }: MapComponentProp
           layerFilter: l => l === regionsLayer.current,
       });
       
-      const highlightSource = highlightLayer.getSource();
+      const highlightSource = highlightLayer.current!.getSource();
       if (!highlightSource) return;
 
-      if (selectedFeature.current) {
-        highlightSource.removeFeature(selectedFeature.current as Feature<Geometry>);
+      if (selectedFeature) {
+        highlightSource.removeFeature(selectedFeature as Feature<Geometry>);
       }
       
       if (feature) {
-          selectedFeature.current = feature;
+          selectedFeature = feature;
           highlightSource.addFeature(feature as Feature<Geometry>);
           
           const regionAcronym = feature.get('Acronym');
           const regionName = feature.get('Name');
-          const temp = regionTemperatureData?.regionTemps[regionAcronym];
+          const temp = temperatureDataRef.current?.regionTemps[regionAcronym];
           
           if (temp !== undefined) {
               tooltipRef.current!.innerHTML = `<b>${regionName} (${regionAcronym})</b><br>${temp.toFixed(2)}°C`;
@@ -166,12 +177,11 @@ export default function MapComponent({ regionTemperatureData }: MapComponentProp
              tooltipOverlay.setPosition(undefined);
           }
       } else {
-          selectedFeature.current = null;
+          selectedFeature = null;
           tooltipOverlay.setPosition(undefined);
       }
     });
     
-    // Fetch custom regions
     fetch('/data/IPCC-WGI-reference-regions-v4.geojson')
       .then(response => {
         if (!response.ok) {
@@ -194,12 +204,11 @@ export default function MapComponent({ regionTemperatureData }: MapComponentProp
       mapInstance.current?.setTarget(undefined);
       mapInstance.current = null;
     };
-  }, [regionsSource, regionTemperatureData]); // Add dependencies
+  }, []);
 
   // Update region colors based on temperature data
   useEffect(() => {
     if (regionsLayer.current) {
-        // This is the key change: it tells the layer to re-evaluate its styles.
         regionsLayer.current.getSource()?.changed();
     }
   }, [regionTemperatureData]);
