@@ -13,7 +13,7 @@ export type Scenario = 'SSP1' | 'SSP2' | 'SSP3' | 'SSP5';
 const scenarioFiles: { [key in Scenario | 'Historical']: string } = {
   'Historical': '/data/CMIP6_ACCESS-CM2_historical_r1i1p1f1.csv',
   'SSP1': '/data/CMIP6_ACCESS-CM2_ssp126_r1i1p1f1.csv',
-  'SSP2': '/data/CM_IP6_ACCESS-CM2_ssp245_r1i1p1f1.csv', // Corrected typo here
+  'SSP2': '/data/CMIP6_ACCESS-CM2_ssp245_r1i1p1f1.csv',
   'SSP3': '/data/CMIP6_ACCESS-CM2_ssp370_r1i1p1f1.csv',
   'SSP5': '/data/CMIP6_ACCESS-CM2_ssp585_r1i1p1f1.csv',
 };
@@ -108,3 +108,4 @@ export async function getCombinedYears(scenario: Scenario): Promise<number[]> {
   await ensureScenarioDataLoaded(scenario);
   return cachedYears[scenario] || [];
 }
+
