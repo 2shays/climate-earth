@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Label } from './ui/label';
 import { Separator } from './ui/separator';
 import { SCENARIOS } from '@/lib/scenarios';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui/accordion';
 
 const PRE_INDUSTRIAL_START_YEAR = 1850;
 const PRE_INDUSTRIAL_END_YEAR = 1900;
@@ -133,7 +134,7 @@ export default function TemporalAtlasView() {
       <header className="absolute top-0 left-0 w-full p-4 md:p-6 z-20 flex justify-end items-start pointer-events-none">
         <div className="w-full max-w-xs flex flex-col gap-2 items-end">
             <Card className="w-full bg-card/80 backdrop-blur-sm pointer-events-auto">
-                <CardHeader className="p-4 pb-2">
+                <CardHeader className="p-4">
                     <Label className="text-xs font-normal text-muted-foreground">Shared Socioeconomic Pathways</Label>
                     <Select value={selectedScenario} onValueChange={handleScenarioChange}>
                         <SelectTrigger className="mt-1">
@@ -148,12 +149,19 @@ export default function TemporalAtlasView() {
                         </SelectContent>
                     </Select>
                 </CardHeader>
-                <CardContent className="p-4 pt-2">
-                {selectedScenarioData && (
-                    <CardDescription className="text-xs">
-                    {selectedScenarioData.description}
-                    </CardDescription>
-                )}
+                <CardContent className="p-4 pt-0">
+                  {selectedScenarioData && (
+                    <Accordion type="single" collapsible className="w-full">
+                      <AccordionItem value="item-1" className="border-b-0">
+                        <AccordionTrigger className="text-xs hover:no-underline py-0 -my-2">Read more</AccordionTrigger>
+                        <AccordionContent className="pt-4">
+                          <CardDescription className="text-xs">
+                            {selectedScenarioData.description}
+                          </CardDescription>
+                        </AccordionContent>
+                      </AccordionItem>
+                    </Accordion>
+                  )}
                 </CardContent>
                 {(globalAverageTemp !== null || temperatureAnomaly !== null) && (
                     <>
