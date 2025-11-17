@@ -18,6 +18,8 @@ import type { FeatureLike } from 'ol/Feature';
 import TileLayer from 'ol/layer/Tile';
 import OSM from 'ol/source/OSM';
 import { getArea } from 'ol/extent';
+import { fromLonLat, toLonLat } from 'ol/proj';
+import { getWidth } from 'ol/extent';
 
 type MapComponentProps = {
   regionTemperatureData: RegionYearlyTemperatureData | undefined;
@@ -140,6 +142,8 @@ export default function MapComponent({ regionTemperatureData }: MapComponentProp
       positioning: 'center-left',
     });
 
+    const mapExtent = fromLonLat([-180, -90]).concat(fromLonLat([180, 90]));
+
     mapInstance.current = new Map({
       target: mapRef.current,
       layers: [
@@ -150,6 +154,7 @@ export default function MapComponent({ regionTemperatureData }: MapComponentProp
       view: new View({
         center: [0, 0],
         zoom: 2,
+        extent: mapExtent,
       }),
       overlays: [tooltipOverlay],
     });
