@@ -18,10 +18,6 @@ const scenarioFiles: { [key in Scenario | 'Historical']: string } = {
   'SSP5': '/data/CMIP6_ACCESS-CM2_ssp585_r1i1p1f1.csv',
 };
 
-// This will cache the *combined* data for each scenario
-let cachedScenarioData: { [scenario in Scenario]?: { [year: number]: RegionTemperatures } } = {};
-let cachedYears: { [scenario in Scenario]?: number[] } = {};
-
 async function parseAndProcessCSV(filePath: string): Promise<{ [year: number]: RegionTemperatures }> {
   const response = await fetch(filePath);
   if (!response.ok) {
@@ -79,6 +75,8 @@ async function parseAndProcessCSV(filePath: string): Promise<{ [year: number]: R
 
 // Cache for the historical data to avoid re-fetching
 let cachedHistoricalData: { [year: number]: RegionTemperatures } | null = null;
+let cachedScenarioData: { [scenario in Scenario]?: { [year: number]: RegionTemperatures } } = {};
+let cachedYears: { [scenario in Scenario]?: number[] } = {};
 
 async function ensureScenarioDataLoaded(scenario: Scenario): Promise<void> {
   if (cachedScenarioData[scenario]) {
