@@ -18,11 +18,8 @@ type YearSliderProps = {
 
 const PRE_INDUSTRIAL_END_YEAR = 1900;
 
-// Memoize the icons to prevent them from re-rendering
-const PlayIcon = memo(() => <Play className="h-6 w-6 absolute" />);
-PlayIcon.displayName = 'PlayIcon';
-const PauseIcon = memo(() => <Pause className="h-6 w-6" />);
-PauseIcon.displayName = 'PauseIcon';
+const PlayIcon = <Play className="h-6 w-6" />;
+const PauseIcon = <Pause className="h-6 w-6" />;
 
 export default function YearSlider({ years, value, onValueChange, onValueCommit, isLoading, isPlaying, onTogglePlay }: YearSliderProps) {
   const valueIndex = useMemo(() => {
@@ -50,7 +47,7 @@ export default function YearSlider({ years, value, onValueChange, onValueCommit,
     ? `${(preIndustrialEndIndex / totalSteps) * 100}%`
     : '0%';
 
-  const showPreIndustrialLabel = years[0] < PRE_INDUSTRIAL_END_YEAR && years[years.length -1] > PRE_INDUSTRIAL_END_YEAR;
+  const showPreIndustrialLabel = years.length > 0 && years[0] < PRE_INDUSTRIAL_END_YEAR && years[years.length -1] > PRE_INDUSTRIAL_END_YEAR;
 
   return (
     <div className="w-full flex-grow flex items-center gap-4 px-4 md:px-0">
@@ -59,19 +56,9 @@ export default function YearSlider({ years, value, onValueChange, onValueCommit,
         size="icon" 
         onClick={onTogglePlay} 
         disabled={isLoading || years.length === 0}
-        data-playing={isPlaying}
-        className="relative group"
+        className="relative"
       >
-        <PlayIcon />
-        <PauseIcon />
-        <style jsx>{`
-          .group[data-playing='true'] :global(.lucide-play) {
-            display: none;
-          }
-          .group[data-playing='false'] :global(.lucide-pause) {
-            display: none;
-          }
-        `}</style>
+        {isPlaying ? PauseIcon : PlayIcon}
         <span className="sr-only">{isPlaying ? "Pause" : "Play"}</span>
       </Button>
       <div className="flex-grow relative pt-4">
