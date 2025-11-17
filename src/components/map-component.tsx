@@ -80,11 +80,11 @@ export default function MapComponent({ temperatureData }: MapComponentProps) {
       source: regionsSource,
       style: new Style({
           fill: new Fill({
-              color: 'rgba(255, 127, 80, 0.3)', // Coral with transparency
+              color: 'rgba(128, 128, 128, 0.2)', // Neutral grey fill
           }),
           stroke: new Stroke({
-              color: '#FF4500', // OrangeRed
-              width: 2,
+              color: '#888888', // Lighter grey stroke
+              width: 1,
           }),
       }),
     });
