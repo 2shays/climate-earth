@@ -1,3 +1,4 @@
+
 export type TemperaturePoint = {
   lat: number;
   lng: number;
@@ -9,4 +10,4 @@ export type YearlyTemperatureData = {
   data: TemperaturePoint[];
 };
 
-export const TEMP_RANGE = { min: -50, max: 30 };
+export const TEMP_RANGE = { min: -20, max: 40 };

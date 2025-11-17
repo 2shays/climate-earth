@@ -26,27 +26,23 @@ type MapComponentProps = {
 // Helper function to get color from temperature
 function getColorFromTemp(temp: number) {
   const alpha = 0.25;
-  const normalizedTemp = (temp - TEMP_RANGE.min) / (TEMP_RANGE.max - TEMP_RANGE.min);
+  const normalizedTemp = Math.max(0, Math.min(1, (temp - TEMP_RANGE.min) / (TEMP_RANGE.max - TEMP_RANGE.min)));
 
   let r, g, b;
 
-  if (normalizedTemp < 0.25) {
-      // Blue to Cyan
+  if (normalizedTemp < 0.25) { // Blue to Cyan
       r = 102;
       g = 178 + (normalizedTemp / 0.25) * (255 - 178);
       b = 255;
-  } else if (normalizedTemp < 0.5) {
-      // Cyan to Green/Yellow
+  } else if (normalizedTemp < 0.5) { // Cyan to Green/Yellow
       r = 102 + ((normalizedTemp - 0.25) / 0.25) * (255 - 102);
       g = 255;
       b = 255 - ((normalizedTemp - 0.25) / 0.25) * 255;
-  } else if (normalizedTemp < 0.75) {
-      // Yellow to Orange
+  } else if (normalizedTemp < 0.75) { // Yellow to Orange
       r = 255;
       g = 255 - ((normalizedTemp - 0.5) / 0.25) * (255 - 165);
       b = 0;
-  } else {
-      // Orange to Red
+  } else { // Orange to Red
       r = 255;
       g = 165 - ((normalizedTemp - 0.75) / 0.25) * 165;
       b = 0;
@@ -90,7 +86,14 @@ export default function MapComponent({ regionTemperatureData }: MapComponentProp
     regionTempDataRef.current = regionTemperatureData;
     const source = regionsLayer.current?.getSource();
     if (source) {
-      source.changed(); // Force redraw
+        source.clear();
+        if (regionTemperatureData && allFeaturesRef.current.length > 0) {
+            const featuresWithData = allFeaturesRef.current.filter(feature => {
+                const acronym = feature.get('Acronym');
+                return regionTemperatureData.regionTemps[acronym] !== undefined;
+            });
+            source.addFeatures(featuresWithData);
+        }
     }
   }, [regionTemperatureData]);
 
@@ -186,7 +189,9 @@ export default function MapComponent({ regionTemperatureData }: MapComponentProp
       
         // If the selected feature is not the new smallest feature, remove it
         if (selectedFeature && selectedFeature !== smallestFeature) {
-          highlightSource.removeFeature(selectedFeature as Feature<Geometry>);
+          if (highlightSource.hasFeature(selectedFeature as Feature<Geometry>)) {
+            highlightSource.removeFeature(selectedFeature as Feature<Geometry>);
+          }
           selectedFeature = null;
         }
       
@@ -228,17 +233,25 @@ export default function MapComponent({ regionTemperatureData }: MapComponentProp
             featureProjection: 'EPSG:3857'
         });
         const features = format.readFeatures(data);
+
+        // Sort features to draw complex ones (land) over simple ones (ocean)
+        features.sort((a, b) => {
+            const geomA = a.getGeometry();
+            const geomB = b.getGeometry();
+            if (geomA?.getType() === 'MultiPolygon' && geomB?.getType() !== 'MultiPolygon') return 1;
+            if (geomA?.getType() !== 'MultiPolygon' && geomB?.getType() === 'MultiPolygon') return -1;
+            return 0;
+        });
+
         allFeaturesRef.current = features;
         // Initial load with data if available
-        if (regionTempDataRef.current) {
-            const source = regionsLayer.current?.getSource();
-            if(source) {
-                const featuresWithData = allFeaturesRef.current.filter(feature => {
-                    const acronym = feature.get('Acronym');
-                    return regionTempDataRef.current!.regionTemps[acronym] !== undefined;
-                });
-                source.addFeatures(featuresWithData);
-            }
+        const source = regionsLayer.current?.getSource();
+        if(source && regionTempDataRef.current) {
+            const featuresWithData = allFeaturesRef.current.filter(feature => {
+                const acronym = feature.get('Acronym');
+                return regionTempDataRef.current!.regionTemps[acronym] !== undefined;
+            });
+            source.addFeatures(featuresWithData);
         }
       })
       .catch(error => {
@@ -250,18 +263,6 @@ export default function MapComponent({ regionTemperatureData }: MapComponentProp
       mapInstance.current = null;
     };
   }, []);
-
-  useEffect(() => {
-    const source = regionsLayer.current?.getSource();
-    if (source && regionTemperatureData && allFeaturesRef.current.length > 0) {
-        source.clear();
-        const featuresWithData = allFeaturesRef.current.filter(feature => {
-            const acronym = feature.get('Acronym');
-            return regionTemperatureData.regionTemps[acronym] !== undefined;
-        });
-        source.addFeatures(featuresWithData);
-    }
-  }, [regionTemperatureData]);
 
   return (
     <>
