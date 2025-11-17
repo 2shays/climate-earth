@@ -71,40 +71,35 @@ async function parseAndProcessCSV(filePath: string): Promise<{ [year: number]: R
   return processedData;
 }
 
-// Caches for combined data and years for each scenario
-const cachedScenarioData: { [scenario in Scenario]?: { [year: number]: RegionTemperatures } } = {};
-const cachedYears: { [scenario in Scenario]?: number[] } = {};
+const cachedCombinedData: { [scenario in Scenario]?: { [year: number]: RegionTemperatures } } = {};
 
-async function ensureScenarioDataLoaded(scenario: Scenario): Promise<void> {
-  if (cachedScenarioData[scenario]) {
-    return;
-  }
+async function loadAndCombineData(scenario: Scenario): Promise<{ [year: number]: RegionTemperatures }> {
+    if (cachedCombinedData[scenario]) {
+        return cachedCombinedData[scenario]!;
+    }
 
-  const [historicalData, futureData] = await Promise.all([
-    parseAndProcessCSV(scenarioFiles['Historical']),
-    parseAndProcessCSV(scenarioFiles[scenario])
-  ]);
-  
-  const combinedData = { ...historicalData, ...futureData };
-  
-  cachedScenarioData[scenario] = combinedData;
-  cachedYears[scenario] = Object.keys(combinedData).map(Number).sort((a, b) => a - b);
+    const [historicalData, futureData] = await Promise.all([
+        parseAndProcessCSV(scenarioFiles['Historical']),
+        parseAndProcessCSV(scenarioFiles[scenario])
+    ]);
+    
+    const combinedData = { ...historicalData, ...futureData };
+    cachedCombinedData[scenario] = combinedData;
+    return combinedData;
 }
 
 
 export async function getCombinedDataForYear(scenario: Scenario, year: number): Promise<RegionYearlyTemperatureData> {
-  await ensureScenarioDataLoaded(scenario);
-  
-  const dataForScenario = cachedScenarioData[scenario];
+  const combinedData = await loadAndCombineData(scenario);
 
-  if (dataForScenario && dataForScenario[year]) {
-    return { year, regionTemps: dataForScenario[year] };
+  if (combinedData && combinedData[year]) {
+    return { year, regionTemps: combinedData[year] };
   }
 
   throw new Error(`Data for year ${year} in scenario ${scenario} not found.`);
 }
 
 export async function getCombinedYears(scenario: Scenario): Promise<number[]> {
-  await ensureScenarioDataLoaded(scenario);
-  return cachedYears[scenario] || [];
+  const combinedData = await loadAndCombineData(scenario);
+  return Object.keys(combinedData).map(Number).sort((a, b) => a - b);
 }
