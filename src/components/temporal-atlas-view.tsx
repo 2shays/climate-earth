@@ -1,7 +1,8 @@
+
 "use client";
 
-import { useState, useEffect, useCallback, useTransition } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useState, useEffect, useCallback, useTransition, useMemo } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { getRegionYears, getRegionDataForYear, RegionYearlyTemperatureData, Scenario } from '@/lib/region-data';
 
 import MapComponent from '@/components/map-component';
@@ -9,6 +10,7 @@ import YearSlider from '@/components/year-slider';
 import TemperatureLegend from '@/components/temperature-legend';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Label } from './ui/label';
+import { Separator } from './ui/separator';
 
 const SCENARIOS: { id: Scenario, name: string }[] = [
     { id: 'Historical', name: 'Historical' },
@@ -37,6 +39,10 @@ export default function TemporalAtlasView() {
         setSelectedYear(initialYear);
         const initialData = await getRegionDataForYear(scenario, initialYear);
         setTemperatureData(initialData);
+      } else {
+        setYears([]);
+        setSelectedYear(undefined);
+        setTemperatureData(undefined);
       }
     } catch (error) {
       console.error(`Failed to load initial data for scenario ${scenario}:`, error);
@@ -45,7 +51,6 @@ export default function TemporalAtlasView() {
     }
   };
 
-  // Effect for initial data load and scenario changes
   useEffect(() => {
     loadInitialData(selectedScenario);
   }, [selectedScenario]);
@@ -58,6 +63,7 @@ export default function TemporalAtlasView() {
         setTemperatureData(data);
       } catch (error) {
         console.error(`Failed to load data for year ${year}:`, error);
+        setTemperatureData(undefined);
       }
     });
   }, [selectedScenario]);
@@ -65,23 +71,28 @@ export default function TemporalAtlasView() {
   const handleScenarioChange = (scenarioId: string) => {
     setSelectedScenario(scenarioId as Scenario);
   };
+
+  const globalAverageTemp = useMemo(() => {
+    if (!temperatureData?.regionTemps) return null;
+
+    const temps = Object.values(temperatureData.regionTemps);
+    if (temps.length === 0) return null;
+
+    const sum = temps.reduce((acc, temp) => acc + temp, 0);
+    return sum / temps.length;
+  }, [temperatureData]);
   
   return (
     <div className="relative h-[100svh] w-full overflow-hidden bg-background">
       <div className={`absolute inset-0 z-10 bg-background/50 transition-opacity duration-300 ${isDataLoading ? 'opacity-100' : 'opacity-0'} pointer-events-none`} />
       <MapComponent regionTemperatureData={temperatureData} />
 
-      <header className="absolute top-0 left-0 w-full p-4 md:p-6 z-20 flex justify-between items-start">
-        <h1 className="text-3xl md:text-5xl font-headline font-bold text-white [text-shadow:_0_2px_6px_rgb(0_0_0_/_60%)]">
-          Temporal Atlas
-        </h1>
+      <header className="absolute top-0 left-0 w-full p-4 md:p-6 z-20 flex justify-end items-start">
         <Card className="w-full max-w-xs bg-card/80 backdrop-blur-sm">
-            <CardHeader className="p-3">
+            <CardHeader className="p-4">
                 <Label className="text-xs font-normal text-muted-foreground">Shared Socioeconomic Pathways</Label>
-            </CardHeader>
-            <CardContent className="p-3 pt-0">
-                <Select value={selectedScenario} onValueChange={handleScenarioChange}>
-                    <SelectTrigger>
+                 <Select value={selectedScenario} onValueChange={handleScenarioChange}>
+                    <SelectTrigger className="mt-1">
                         <SelectValue placeholder="Select a scenario" />
                     </SelectTrigger>
                     <SelectContent>
@@ -92,7 +103,18 @@ export default function TemporalAtlasView() {
                         ))}
                     </SelectContent>
                 </Select>
-            </CardContent>
+            </CardHeader>
+            {globalAverageTemp !== null && (
+                <>
+                    <Separator />
+                    <CardContent className="p-4">
+                        <div className="text-xs text-muted-foreground">Global Mean Temperature</div>
+                        <div className="text-2xl font-bold text-card-foreground">
+                            {globalAverageTemp.toFixed(2)}°C
+                        </div>
+                    </CardContent>
+                </>
+            )}
         </Card>
       </header>
 
