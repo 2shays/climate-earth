@@ -9,32 +9,31 @@ export type RegionYearlyTemperatureData = {
 };
 
 export type Scenario = 'SSP1' | 'SSP2' | 'SSP3' | 'SSP5';
-type InternalScenario = Scenario | 'Historical';
 
-const scenarioFiles: Record<InternalScenario, string> = {
+const scenarioFiles: { [key in Scenario | 'Historical']: string } = {
   'Historical': '/data/CMIP6_ACCESS-CM2_historical_r1i1p1f1.csv',
   'SSP1': '/data/CMIP6_ACCESS-CM2_ssp126_r1i1p1f1.csv',
-  'SSP2': '/data/CMIP6_ACCESS-CM2_ssp245_r1i1p1f1.csv',
+  'SSP2': '/data/CM_IP6_ACCESS-CM2_ssp245_r1i1p1f1.csv', // Corrected typo here
   'SSP3': '/data/CMIP6_ACCESS-CM2_ssp370_r1i1p1f1.csv',
   'SSP5': '/data/CMIP6_ACCESS-CM2_ssp585_r1i1p1f1.csv',
 };
 
-let cachedData: { [scenario in InternalScenario]?: { [year: number]: RegionTemperatures } } = {};
-let allYears: { [scenario in InternalScenario]?: number[] } = {};
+// This will cache the *combined* data for each scenario
+let cachedScenarioData: { [scenario in Scenario]?: { [year: number]: RegionTemperatures } } = {};
+let cachedYears: { [scenario in Scenario]?: number[] } = {};
 
-async function parseCSV(scenario: InternalScenario): Promise<void> {
-  if (cachedData[scenario]) {
-    return;
-  }
-  
-  const filePath = scenarioFiles[scenario];
+async function parseAndProcessCSV(filePath: string): Promise<{ [year: number]: RegionTemperatures }> {
   const response = await fetch(filePath);
   if (!response.ok) {
-    throw new Error(`Failed to fetch CSV data for ${scenario} from ${filePath}`);
+    throw new Error(`Failed to fetch CSV data from ${filePath}`);
   }
   const csvText = await response.text();
   const lines = csvText.trim().split('\n');
   
+  if (lines.length < 2) {
+    return {};
+  }
+
   const headers = lines[0].split(',').map(h => h.trim());
   const regionAcronyms = headers.slice(1);
   
@@ -42,8 +41,11 @@ async function parseCSV(scenario: InternalScenario): Promise<void> {
 
   for (let i = 1; i < lines.length; i++) {
     const values = lines[i].split(',');
+    if (values.length < headers.length) continue;
+
     const date = values[0];
     const year = parseInt(date.substring(0, 4), 10);
+    if (isNaN(year)) continue;
 
     if (!yearlyAverages[year]) {
       yearlyAverages[year] = {};
@@ -62,55 +64,47 @@ async function parseCSV(scenario: InternalScenario): Promise<void> {
     }
   }
 
-  const scenarioData: { [year: number]: RegionTemperatures } = {};
+  const processedData: { [year: number]: RegionTemperatures } = {};
   Object.keys(yearlyAverages).forEach(yearStr => {
     const year = parseInt(yearStr, 10);
-    scenarioData[year] = {};
+    processedData[year] = {};
     regionAcronyms.forEach(acronym => {
       const { sum, count } = yearlyAverages[year][acronym];
-      scenarioData[year][acronym] = count > 0 ? sum / count : 0;
+      processedData[year][acronym] = count > 0 ? sum / count : 0;
     });
   });
 
-  cachedData[scenario] = scenarioData;
-  allYears[scenario] = Object.keys(scenarioData).map(Number).sort((a, b) => a - b);
+  return processedData;
 }
 
-async function ensureDataLoaded(scenario: InternalScenario) {
-  if (!cachedData[scenario]) {
-    await parseCSV(scenario);
+async function ensureScenarioDataLoaded(scenario: Scenario): Promise<void> {
+  if (cachedScenarioData[scenario]) {
+    return;
   }
-}
 
-async function ensureCombinedDataLoaded(scenario: Scenario) {
-    await ensureDataLoaded('Historical');
-    await ensureDataLoaded(scenario);
+  const historicalData = await parseAndProcessCSV(scenarioFiles['Historical']);
+  const futureData = await parseAndProcessCSV(scenarioFiles[scenario]);
+
+  // Combine historical and future data into one object for the scenario
+  const combinedData = { ...historicalData, ...futureData };
+  
+  cachedScenarioData[scenario] = combinedData;
+  cachedYears[scenario] = Object.keys(combinedData).map(Number).sort((a, b) => a - b);
 }
 
 export async function getCombinedDataForYear(scenario: Scenario, year: number): Promise<RegionYearlyTemperatureData> {
-    await ensureCombinedDataLoaded(scenario);
-    
-    const historicalData = cachedData['Historical'];
-    const scenarioData = cachedData[scenario];
+  await ensureScenarioDataLoaded(scenario);
+  
+  const dataForScenario = cachedScenarioData[scenario];
 
-    if (historicalData && historicalData[year]) {
-        return { year, regionTemps: historicalData[year] };
-    }
+  if (dataForScenario && dataForScenario[year]) {
+    return { year, regionTemps: dataForScenario[year] };
+  }
 
-    if (scenarioData && scenarioData[year]) {
-        return { year, regionTemps: scenarioData[year] };
-    }
-
-    throw new Error(`Data for year ${year} in scenario ${scenario} not found.`);
+  throw new Error(`Data for year ${year} in scenario ${scenario} not found.`);
 }
 
-
 export async function getCombinedYears(scenario: Scenario): Promise<number[]> {
-    await ensureCombinedDataLoaded(scenario);
-    
-    const historicalYears = allYears['Historical'] || [];
-    const scenarioYears = allYears[scenario] || [];
-
-    const combined = Array.from(new Set([...historicalYears, ...scenarioYears])).sort((a, b) => a - b);
-    return combined;
+  await ensureScenarioDataLoaded(scenario);
+  return cachedYears[scenario] || [];
 }
