@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, Suspense } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { getAnalysisForYear } from '@/app/actions';
 import { mockTemperatureData, MOCK_YEARS, TemperaturePoint } from '@/lib/data';
@@ -32,9 +32,7 @@ export default function TemporalAtlasView() {
 
   return (
     <div className="relative h-[100svh] w-full overflow-hidden bg-background">
-      <Suspense fallback={<div className="h-full w-full bg-gray-800 animate-pulse" />}>
-        <MapComponent temperatureData={temperatureData} />
-      </Suspense>
+      <MapComponent temperatureData={temperatureData} />
 
       <header className="absolute top-0 left-0 w-full p-4 md:p-6">
         <h1 className="text-3xl md:text-5xl font-headline font-bold text-white [text-shadow:_0_2px_6px_rgb(0_0_0_/_60%)]">

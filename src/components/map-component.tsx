@@ -1,61 +1,40 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
-import { APIProvider, Map, useMap } from '@vis.gl/react-google-maps';
+import React from 'react';
+import {
+  ComposableMap,
+  Geographies,
+  Geography,
+  Marker,
+} from 'react-simple-maps';
 import type { TemperaturePoint } from '@/lib/data';
 import { TEMP_RANGE } from '@/lib/data';
-import { mapStyles } from '@/lib/map-styles';
-import { Alert, AlertDescription, AlertTitle } from './ui/alert';
-import { Terminal } from 'lucide-react';
 
-type HeatmapProps = {
-  data: google.maps.visualization.WeightedLocation[];
-};
+// URL to the TopoJSON file for world map
+const geoUrl =
+  'https://raw.githubusercontent.com/deldersveld/topojson/master/world-countries.json';
 
-const HeatmapLayer = ({ data }: HeatmapProps) => {
-  const map = useMap();
-  const [heatmap, setHeatmap] = useState<google.maps.visualization.HeatmapLayer | null>(null);
+// Function to get color based on temperature
+const getColorForTemperature = (temp: number) => {
+  const normalizedTemp =
+    (temp - TEMP_RANGE.min) / (TEMP_RANGE.max - TEMP_RANGE.min);
 
-  useEffect(() => {
-    if (!map) return;
-    
-    // Ensure visualization library is loaded
-    if (!google.maps.visualization) {
-      console.error("Google Maps Visualization library is not loaded.");
-      return;
-    }
-
-    if (!heatmap) {
-      const newHeatmap = new google.maps.visualization.HeatmapLayer({
-        data,
-        map,
-        gradient: [
-          'rgba(102, 178, 255, 0)', // primary color (sky blue) with 0 opacity
-          'rgba(102, 178, 255, 1)',
-          'rgba(127, 255, 212, 1)', // Aquamarine
-          'rgba(255, 255, 0, 1)', // Yellow
-          'rgba(255, 165, 0, 1)', // Orange
-          'rgba(255, 127, 80, 1)', // accent color (coral red)
-        ],
-        radius: 30,
-        opacity: 0.7,
-      });
-      setHeatmap(newHeatmap);
-    } else {
-      heatmap.setData(data);
-    }
-    
-    // Cleanup on unmount
-    return () => {
-      if(heatmap) {
-        heatmap.setMap(null);
-      }
-    };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [map, data]);
-
-
-  return null;
+  // Gradient: blue -> cyan -> yellow -> orange -> red
+  if (normalizedTemp < 0.25) {
+    const t = normalizedTemp / 0.25;
+    const blue = 255 * (1 - t);
+    const green = 255 * t;
+    return `rgb(0, ${Math.round(green)}, ${Math.round(blue)})`; // Blue to Cyan
+  } else if (normalizedTemp < 0.5) {
+    const t = (normalizedTemp - 0.25) / 0.25;
+    return `rgb(${Math.round(255 * t)}, 255, ${Math.round(212 * (1-t))})`; // Cyan to Yellow
+  } else if (normalizedTemp < 0.75) {
+    const t = (normalizedTemp - 0.5) / 0.25;
+    return `rgb(255, ${Math.round(255 - 90 * t)}, 0)`; // Yellow to Orange
+  } else {
+    const t = (normalizedTemp - 0.75) / 0.25;
+    return `rgb(255, ${Math.round(165 - 165 * t)}, 0)`; // Orange to Red
+  }
 };
 
 type MapComponentProps = {
@@ -63,43 +42,43 @@ type MapComponentProps = {
 };
 
 export default function MapComponent({ temperatureData }: MapComponentProps) {
-  const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
-
-  const heatmapData = useMemo(() => {
-    return temperatureData.map(point => ({
-      location: new google.maps.LatLng(point.lat, point.lng),
-      weight: (point.temp - TEMP_RANGE.min) / (TEMP_RANGE.max - TEMP_RANGE.min),
-    }));
-  }, [temperatureData]);
-
-  if (!apiKey) {
-    return (
-      <div className="h-full w-full flex items-center justify-center bg-muted p-4">
-        <Alert variant="destructive" className="max-w-md">
-            <Terminal className="h-4 w-4" />
-            <AlertTitle>Google Maps API Key Missing</AlertTitle>
-            <AlertDescription>
-            Please add your Google Maps API key to a <code>.env.local</code> file to display the map.
-            <br />
-            Example: <code>NEXT_PUBLIC_GOOGLE_MAPS_API_KEY="YOUR_KEY_HERE"</code>
-            </AlertDescription>
-        </Alert>
-      </div>
-    );
-  }
-
   return (
-    <APIProvider apiKey={apiKey} libraries={['visualization']}>
-      <Map
-        defaultCenter={{ lat: 20, lng: 0 }}
-        defaultZoom={2.5}
-        gestureHandling={'greedy'}
-        disableDefaultUI={true}
-        styles={mapStyles}
-        mapId="temporal-atlas-map"
+    <div className="h-full w-full bg-background" data-testid="map-component">
+      <ComposableMap
+        projection="geoEqualEarth"
+        projectionConfig={{
+          scale: 180,
+          center: [0, 20],
+        }}
+        style={{ width: '100%', height: '100%' }}
       >
-        <HeatmapLayer data={heatmapData} />
-      </Map>
-    </APIProvider>
+        <Geographies
+          geography={geoUrl}
+          fill="#344150"
+          stroke="#17263c"
+          strokeWidth={0.5}
+        >
+          {({ geographies }) =>
+            geographies.map((geo) => (
+              <Geography key={geo.rsmKey} geography={geo} />
+            ))
+          }
+        </Geographies>
+        {temperatureData.map((point, index) => (
+          <Marker
+            key={index}
+            coordinates={[point.lng, point.lat]}
+          >
+            <circle
+              r={2}
+              fill={getColorForTemperature(point.temp)}
+              stroke="#fff"
+              strokeWidth={0.2}
+              style={{ opacity: 0.7 }}
+            />
+          </Marker>
+        ))}
+      </ComposableMap>
+    </div>
   );
 }
