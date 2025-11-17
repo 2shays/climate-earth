@@ -101,7 +101,7 @@ export default function MapComponent({ regionTemperatureData }: MapComponentProp
 
     const mapBackgroundLayer = new TileLayer({
         source: new OSM(),
-        opacity: 0.3,
+        opacity: 0.8,
     });
       
     const regionsSource = new VectorSource();

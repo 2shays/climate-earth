@@ -22,7 +22,11 @@ export default function TemporalAtlasView() {
         const availableYears = await getRegionYears();
         setYears(availableYears);
         if (availableYears.length > 0) {
-          const initialYear = availableYears[Math.floor(availableYears.length / 2)];
+          const defaultYear = 2014;
+          const initialYear = availableYears.includes(defaultYear) 
+            ? defaultYear 
+            : availableYears[Math.floor(availableYears.length / 2)];
+          
           setSelectedYear(initialYear);
           const initialData = await getRegionDataForYear(initialYear);
           setTemperatureData(initialData);
