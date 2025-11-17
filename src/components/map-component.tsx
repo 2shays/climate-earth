@@ -131,7 +131,7 @@ export default function MapComponent({ temperatureData }: MapComponentProps) {
         regionsSource.addFeatures(features);
       })
       .catch(error => {
-        console.error("Could not fetch or parse 'regions.geojson'. Make sure the file exists at 'public/data/IPCC-WGI-reference-regions-v4.geojson'.", error);
+        console.error("Could not fetch or parse the GeoJSON file. Please ensure the file 'IPCC-WGI-reference-regions-v4.geojson' exists in the 'public/data/' directory.", error);
       });
 
     return () => {
