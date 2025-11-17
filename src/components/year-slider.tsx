@@ -3,6 +3,8 @@
 
 import { Slider } from "@/components/ui/slider";
 import { useMemo } from "react";
+import { Button } from "./ui/button";
+import { Pause, Play } from "lucide-react";
 
 type YearSliderProps = {
   years: number[];
@@ -10,11 +12,13 @@ type YearSliderProps = {
   onValueChange: (year: number) => void;
   onValueCommit: (year: number) => void;
   isLoading?: boolean;
+  isPlaying: boolean;
+  onTogglePlay: () => void;
 };
 
 const PRE_INDUSTRIAL_END_YEAR = 1900;
 
-export default function YearSlider({ years, value, onValueChange, onValueCommit, isLoading }: YearSliderProps) {
+export default function YearSlider({ years, value, onValueChange, onValueCommit, isLoading, isPlaying, onTogglePlay }: YearSliderProps) {
   const valueIndex = useMemo(() => {
     if (!years || years.length === 0 || typeof value !== 'number' || isNaN(value)) return 0;
     const index = years.indexOf(value);
@@ -43,40 +47,46 @@ export default function YearSlider({ years, value, onValueChange, onValueCommit,
   const showPreIndustrialLabel = years[0] < PRE_INDUSTRIAL_END_YEAR && years[years.length -1] > PRE_INDUSTRIAL_END_YEAR;
 
   return (
-    <div className="w-full flex-grow px-4 md:px-0 relative pt-4">
-      <div className="relative">
-        <Slider
-          value={[valueIndex]}
-          onValueChange={handleSliderChange}
-          onValueCommit={handleSliderCommit}
-          min={0}
-          max={years.length > 0 ? years.length - 1 : 0}
-          step={1}
-          disabled={isLoading || years.length === 0}
-        />
-        {preIndustrialEndIndex > 0 && (
-          <div 
-            className="absolute top-0 h-2 rounded-l-full bg-green-500/50"
-            style={{ width: preIndustrialMarkerPosition }}
-            aria-hidden="true"
+    <div className="w-full flex-grow flex items-center gap-4 px-4 md:px-0">
+      <Button variant="ghost" size="icon" onClick={onTogglePlay} disabled={isLoading || years.length === 0}>
+        {isPlaying ? <Pause className="h-6 w-6" /> : <Play className="h-6 w-6" />}
+        <span className="sr-only">{isPlaying ? "Pause" : "Play"}</span>
+      </Button>
+      <div className="flex-grow relative pt-4">
+        <div className="relative">
+          <Slider
+            value={[valueIndex]}
+            onValueChange={handleSliderChange}
+            onValueCommit={handleSliderCommit}
+            min={0}
+            max={years.length > 0 ? years.length - 1 : 0}
+            step={1}
+            disabled={isLoading || years.length === 0}
           />
-        )}
-      </div>
-      <div className="flex justify-between text-xs text-muted-foreground mt-2 relative">
-        <span>{years.length > 0 ? years[0] : ''}</span>
-        
-        <span className="font-bold text-base text-foreground absolute left-1/2 -top-1 -translate-x-1/2">{value}</span>
+          {preIndustrialEndIndex > 0 && (
+            <div 
+              className="absolute top-0 h-2 rounded-l-full bg-green-500/50"
+              style={{ width: preIndustrialMarkerPosition }}
+              aria-hidden="true"
+            />
+          )}
+        </div>
+        <div className="flex justify-between text-xs text-muted-foreground mt-2 relative">
+          <span>{years.length > 0 ? years[0] : ''}</span>
+          
+          <span className="font-bold text-base text-foreground absolute left-1/2 -top-1 -translate-x-1/2">{value}</span>
 
-        {showPreIndustrialLabel && (
-           <span 
-             className="absolute transform -translate-x-1/2"
-             style={{ left: preIndustrialMarkerPosition }}
-           >
-            {PRE_INDUSTRIAL_END_YEAR}
-          </span>
-        )}
-        
-        <span>{years.length > 0 ? years[years.length - 1] : ''}</span>
+          {showPreIndustrialLabel && (
+            <span 
+              className="absolute transform -translate-x-1/2 -bottom-4"
+              style={{ left: preIndustrialMarkerPosition }}
+            >
+              {PRE_INDUSTRIAL_END_YEAR}
+            </span>
+          )}
+          
+          <span>{years.length > 0 ? years[years.length - 1] : ''}</span>
+        </div>
       </div>
     </div>
   );

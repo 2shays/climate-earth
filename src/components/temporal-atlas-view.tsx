@@ -38,6 +38,7 @@ export default function TemporalAtlasView() {
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [isDataLoading, startDataTransition] = useTransition();
   const [preIndustrialAverage, setPreIndustrialAverage] = useState<number | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
 
   const loadInitialData = async (scenario: Scenario) => {
     setIsInitialLoading(true);
@@ -45,7 +46,6 @@ export default function TemporalAtlasView() {
       const availableYears = await getCombinedYears(scenario);
       setYears(availableYears);
 
-      // Calculate pre-industrial average
       const preIndustrialYears = availableYears.filter(y => y >= PRE_INDUSTRIAL_START_YEAR && y <= PRE_INDUSTRIAL_END_YEAR);
       if (preIndustrialYears.length > 0) {
         const preIndustrialData = await Promise.all(
@@ -81,6 +81,7 @@ export default function TemporalAtlasView() {
 
   useEffect(() => {
     loadInitialData(selectedScenario);
+    setIsPlaying(false);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedScenario]);
 
@@ -97,8 +98,24 @@ export default function TemporalAtlasView() {
     });
   }, [selectedScenario]);
 
+  useEffect(() => {
+    if (!isPlaying || years.length === 0 || !selectedYear) return;
+
+    const interval = setInterval(() => {
+      const currentIndex = years.indexOf(selectedYear);
+      const nextIndex = (currentIndex + 1) % years.length;
+      handleYearChange(years[nextIndex]);
+    }, 200); // Change year every 200ms
+
+    return () => clearInterval(interval);
+  }, [isPlaying, years, selectedYear, handleYearChange]);
+
   const handleScenarioChange = (scenarioId: string) => {
     setSelectedScenario(scenarioId as Scenario);
+  };
+
+  const togglePlay = () => {
+    setIsPlaying(!isPlaying);
   };
 
   const globalAverageTemp = useMemo(() => calculateGlobalMean(temperatureData), [temperatureData]);
@@ -171,6 +188,8 @@ export default function TemporalAtlasView() {
                   onValueChange={handleYearChange}
                   onValueCommit={handleYearChange}
                   isLoading={isDataLoading}
+                  isPlaying={isPlaying}
+                  onTogglePlay={togglePlay}
                 />
                 <TemperatureLegend />
               </>
