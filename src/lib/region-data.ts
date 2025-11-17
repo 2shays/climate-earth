@@ -73,25 +73,24 @@ async function parseAndProcessCSV(filePath: string): Promise<{ [year: number]: R
   return processedData;
 }
 
-// Cache for the historical data to avoid re-fetching
-let cachedHistoricalData: { [year: number]: RegionTemperatures } | null = null;
+// Caches for combined data and years for each scenario
 let cachedScenarioData: { [scenario in Scenario]?: { [year: number]: RegionTemperatures } } = {};
 let cachedYears: { [scenario in Scenario]?: number[] } = {};
 
 async function ensureScenarioDataLoaded(scenario: Scenario): Promise<void> {
+  // If data for this scenario is already loaded and cached, do nothing.
   if (cachedScenarioData[scenario]) {
     return;
   }
 
-  if (!cachedHistoricalData) {
-    cachedHistoricalData = await parseAndProcessCSV(scenarioFiles['Historical']);
-  }
-  
+  // Load historical data and the specific future scenario data.
+  const historicalData = await parseAndProcessCSV(scenarioFiles['Historical']);
   const futureData = await parseAndProcessCSV(scenarioFiles[scenario]);
 
-  // Combine historical and future data into one object for the scenario
-  const combinedData = { ...cachedHistoricalData, ...futureData };
+  // Combine historical and future data into one object for the scenario.
+  const combinedData = { ...historicalData, ...futureData };
   
+  // Cache the fully combined data and the sorted list of years for this scenario.
   cachedScenarioData[scenario] = combinedData;
   cachedYears[scenario] = Object.keys(combinedData).map(Number).sort((a, b) => a - b);
 }
