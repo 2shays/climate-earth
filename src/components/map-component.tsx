@@ -23,7 +23,6 @@ type MapComponentProps = {
 // Helper function to get color from temperature
 function getColorFromTemp(temp: number) {
   const normalizedTemp = (temp - TEMP_RANGE.min) / (TEMP_RANGE.max - TEMP_RANGE.min);
-  const hue = (1 - normalizedTemp) * 240; // 240 (blue) -> 0 (red)
   
   if (normalizedTemp < 0.25) {
       // Blue to Cyan
@@ -56,7 +55,9 @@ export default function MapComponent({ temperatureData }: MapComponentProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<Map | null>(null);
   const countriesLayer = useRef<VectorLayer<VectorSource<Feature<Geometry>>> | null>(null);
+  const regionsLayer = useRef<VectorLayer<VectorSource<Feature<Geometry>>> | null>(null);
   const [countriesSource] = useState(new VectorSource());
+  const [regionsSource] = useState(new VectorSource());
 
   // Initialize map
   useEffect(() => {
@@ -75,6 +76,19 @@ export default function MapComponent({ temperatureData }: MapComponentProps) {
         }),
     });
 
+    regionsLayer.current = new VectorLayer({
+      source: regionsSource,
+      style: new Style({
+          fill: new Fill({
+              color: 'rgba(255, 127, 80, 0.3)', // Coral with transparency
+          }),
+          stroke: new Stroke({
+              color: '#FF4500', // OrangeRed
+              width: 2,
+          }),
+      }),
+    });
+
     mapInstance.current = new Map({
       target: mapRef.current,
       layers: [
@@ -82,6 +96,7 @@ export default function MapComponent({ temperatureData }: MapComponentProps) {
           source: new OSM(),
         }),
         countriesLayer.current,
+        regionsLayer.current,
       ],
       view: new View({
         center: fromLonLat([0, 20]),
@@ -99,12 +114,31 @@ export default function MapComponent({ temperatureData }: MapComponentProps) {
         const features = format.readFeatures(data);
         countriesSource.addFeatures(features);
       });
+    
+    // Fetch custom regions
+    fetch('/data/regions.geojson')
+      .then(response => {
+        if (!response.ok) {
+          throw new Error('Network response was not ok');
+        }
+        return response.json();
+      })
+      .then(data => {
+        const format = new GeoJSON({
+            featureProjection: 'EPSG:3857'
+        });
+        const features = format.readFeatures(data);
+        regionsSource.addFeatures(features);
+      })
+      .catch(error => {
+        console.error("Could not fetch or parse 'regions.geojson'. Make sure the file is in the 'public/data' directory.", error);
+      });
 
     return () => {
       mapInstance.current?.setTarget(undefined);
       mapInstance.current = null;
     };
-  }, [countriesSource]);
+  }, [countriesSource, regionsSource]);
 
   // Update country colors based on temperature data
   useEffect(() => {
