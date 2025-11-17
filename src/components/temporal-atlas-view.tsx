@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useTransition } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { getRegionYears, getRegionDataForYear, RegionYearlyTemperatureData } from '@/lib/region-data';
 
@@ -12,7 +12,8 @@ export default function TemporalAtlasView() {
   const [years, setYears] = useState<number[]>([]);
   const [selectedYear, setSelectedYear] = useState<number | undefined>();
   const [temperatureData, setTemperatureData] = useState<RegionYearlyTemperatureData | undefined>();
-  const [isLoading, setIsLoading] = useState(true);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
+  const [isDataLoading, startDataTransition] = useTransition();
 
   useEffect(() => {
     async function loadData() {
@@ -28,29 +29,23 @@ export default function TemporalAtlasView() {
       } catch (error) {
         console.error("Failed to load regional temperature data:", error);
       } finally {
-        setIsLoading(false);
+        setIsInitialLoading(false);
       }
     }
     loadData();
   }, []);
 
-  useEffect(() => {
-    if (selectedYear === undefined) return;
-
-    async function updateDataForYear() {
-      setIsLoading(true);
+  const handleYearChange = useCallback((year: number) => {
+    setSelectedYear(year);
+    startDataTransition(async () => {
       try {
-        const data = await getRegionDataForYear(selectedYear!);
+        const data = await getRegionDataForYear(year);
         setTemperatureData(data);
       } catch (error) {
-        console.error(`Failed to load data for year ${selectedYear}:`, error);
-      } finally {
-        setIsLoading(false);
+        console.error(`Failed to load data for year ${year}:`, error);
       }
-    }
-
-    updateDataForYear();
-  }, [selectedYear]);
+    });
+  }, []);
 
   return (
     <div className="relative h-[100svh] w-full overflow-hidden bg-background">
@@ -65,7 +60,7 @@ export default function TemporalAtlasView() {
       <footer className="absolute bottom-0 left-0 w-full p-4">
         <Card className="max-w-3xl mx-auto bg-card/80 backdrop-blur-sm">
           <CardContent className="p-4 flex flex-col md:flex-row items-center gap-6">
-            {isLoading || !selectedYear || years.length === 0 ? (
+            {isInitialLoading || !selectedYear || years.length === 0 ? (
               <div className="w-full h-10 flex items-center justify-center text-muted-foreground">
                 Loading data...
               </div>
@@ -73,7 +68,8 @@ export default function TemporalAtlasView() {
               <YearSlider
                 years={years}
                 value={selectedYear}
-                onValueChange={setSelectedYear}
+                onValueChange={handleYearChange}
+                isLoading={isDataLoading}
               />
             )}
             <TemperatureLegend />

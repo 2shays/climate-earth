@@ -15,6 +15,10 @@ import { Style, Fill, Stroke } from 'ol/style';
 import Feature from 'ol/Feature';
 import type { Geometry } from 'ol/geom';
 import type { RegionYearlyTemperatureData } from '@/lib/region-data';
+import { Overlay } from 'ol';
+import { pointerMove } from 'ol/events/condition';
+import Select from 'ol/interaction/Select';
+import type { MapBrowserEvent } from 'ol';
 
 type MapComponentProps = {
   regionTemperatureData: RegionYearlyTemperatureData | undefined;
@@ -23,7 +27,7 @@ type MapComponentProps = {
 // Helper function to get color from temperature
 function getColorFromTemp(temp: number) {
   const normalizedTemp = (temp - TEMP_RANGE.min) / (TEMP_RANGE.max - TEMP_RANGE.min);
-  const alpha = 0.6; // Opacity
+  const alpha = 0.5; // Reduced Opacity
   
   if (normalizedTemp < 0.25) {
       // Blue to Cyan
@@ -62,19 +66,33 @@ const defaultRegionStyle = new Style({
   }),
 });
 
+const highlightStyle = new Style({
+  stroke: new Stroke({
+    color: 'rgba(255, 255, 255, 0.9)',
+    width: 2,
+  }),
+});
+
 export default function MapComponent({ regionTemperatureData }: MapComponentProps) {
   const mapRef = useRef<HTMLDivElement>(null);
+  const tooltipRef = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<Map | null>(null);
   const regionsLayer = useRef<VectorLayer<VectorSource<Feature<Geometry>>> | null>(null);
   const [regionsSource] = useState(new VectorSource());
 
   // Initialize map
   useEffect(() => {
-    if (!mapRef.current || mapInstance.current) return;
+    if (!mapRef.current || !tooltipRef.current || mapInstance.current) return;
 
     regionsLayer.current = new VectorLayer({
       source: regionsSource,
       style: defaultRegionStyle,
+    });
+
+    const tooltipOverlay = new Overlay({
+      element: tooltipRef.current,
+      offset: [15, 0],
+      positioning: 'center-left',
     });
 
     mapInstance.current = new Map({
@@ -89,6 +107,57 @@ export default function MapComponent({ regionTemperatureData }: MapComponentProp
         center: fromLonLat([0, 20]),
         zoom: 2,
       }),
+      overlays: [tooltipOverlay],
+    });
+
+    const select = new Select({
+      condition: pointerMove,
+      style: (feature) => {
+        const currentStyle = feature.getStyle() as Style;
+        const newStyle = currentStyle.clone();
+        
+        const existingStroke = currentStyle.getStroke();
+        if (existingStroke) {
+          highlightStyle.getStroke()?.setColor(existingStroke.getColor() || 'white');
+        } else {
+           highlightStyle.getStroke()?.setColor('white');
+        }
+
+        const highlightStroke = new Stroke({
+          color: 'rgba(255, 255, 255, 0.9)',
+          width: 2,
+        });
+
+        newStyle.setStroke(highlightStroke)
+        return newStyle;
+      },
+      layers: [regionsLayer.current],
+    });
+
+    mapInstance.current.addInteraction(select);
+
+    mapInstance.current.on('pointermove', (evt: MapBrowserEvent<UIEvent>) => {
+      if (evt.dragging || !tooltipRef.current) {
+        return;
+      }
+      const pixel = mapInstance.current!.getEventPixel(evt.originalEvent);
+      let featureFound = false;
+
+      mapInstance.current!.forEachFeatureAtPixel(pixel, (feature) => {
+        if(feature) {
+          const regionAcronym = feature.get('Acronym');
+          const temp = regionTemperatureData?.regionTemps[regionAcronym];
+          
+          if (temp !== undefined) {
+              tooltipRef.current!.innerHTML = `${regionAcronym}: ${temp.toFixed(2)}°C`;
+              tooltipOverlay.setPosition(evt.coordinate);
+              featureFound = true;
+          }
+        }
+      });
+
+      tooltipRef.current!.style.display = featureFound ? 'block' : 'none';
+
     });
     
     // Fetch custom regions
@@ -114,7 +183,7 @@ export default function MapComponent({ regionTemperatureData }: MapComponentProp
       mapInstance.current?.setTarget(undefined);
       mapInstance.current = null;
     };
-  }, [regionsSource]);
+  }, [regionsSource, regionTemperatureData]);
 
   // Update region colors based on temperature data
   useEffect(() => {
@@ -139,7 +208,7 @@ export default function MapComponent({ regionTemperatureData }: MapComponentProp
             color: fillColor,
           }),
           stroke: new Stroke({
-            color: '#888888',
+            color: 'rgba(255, 255, 255, 0.4)',
             width: 1,
           }),
         });
@@ -150,5 +219,14 @@ export default function MapComponent({ regionTemperatureData }: MapComponentProp
 
   }, [regionTemperatureData, regionsSource]);
 
-  return <div ref={mapRef} className="h-full w-full" />;
+  return (
+    <>
+      <div ref={mapRef} className="h-full w-full" />
+      <div 
+        ref={tooltipRef} 
+        className="tooltip-container bg-card/80 backdrop-blur-sm text-card-foreground p-2 rounded-md shadow-lg text-sm whitespace-nowrap"
+        style={{ position: 'absolute', display: 'none', pointerEvents: 'none' }}
+      ></div>
+    </>
+  );
 }
