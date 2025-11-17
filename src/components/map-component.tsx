@@ -145,27 +145,27 @@ export default function MapComponent({ regionTemperatureData }: MapComponentProp
     let selectedFeature: FeatureLike | null = null;
 
     mapInstance.current.on('pointermove', (evt: MapBrowserEvent<UIEvent>) => {
-      if (evt.dragging || !tooltipRef.current) {
+      if (evt.dragging || !tooltipRef.current || !mapInstance.current) {
         tooltipOverlay.setPosition(undefined);
         return;
       }
-      const pixel = mapInstance.current!.getEventPixel(evt.originalEvent);
+      const pixel = mapInstance.current.getEventPixel(evt.originalEvent);
       
-      const feature = mapInstance.current!.forEachFeatureAtPixel(pixel, f => f, {
+      const feature = mapInstance.current.forEachFeatureAtPixel(pixel, f => f, {
           layerFilter: l => l === regionsLayer.current,
       });
       
-      const highlightSource = highlightLayer.current!.getSource();
+      const highlightSource = highlightLayer.current?.getSource();
       if (!highlightSource) return;
 
-      // Clear previous highlight
       if (selectedFeature && selectedFeature !== feature) {
          highlightSource.removeFeature(selectedFeature as Feature<Geometry>);
+         selectedFeature = null;
       }
       
       if (feature && feature !== selectedFeature) {
-          selectedFeature = feature;
           highlightSource.addFeature(feature as Feature<Geometry>);
+          selectedFeature = feature;
       }
 
       if (feature) {
@@ -174,13 +174,12 @@ export default function MapComponent({ regionTemperatureData }: MapComponentProp
           const temp = temperatureDataRef.current?.regionTemps[regionAcronym];
           
           if (temp !== undefined) {
-              tooltipRef.current!.innerHTML = `<b>${regionName} (${regionAcronym})</b><br>${temp.toFixed(2)}°C`;
+              tooltipRef.current.innerHTML = `<b>${regionName} (${regionAcronym})</b><br>${temp.toFixed(2)}°C`;
               tooltipOverlay.setPosition(evt.coordinate);
           } else {
              tooltipOverlay.setPosition(undefined);
           }
       } else {
-          selectedFeature = null;
           tooltipOverlay.setPosition(undefined);
       }
     });
@@ -188,7 +187,7 @@ export default function MapComponent({ regionTemperatureData }: MapComponentProp
     fetch('/data/IPCC-WGI-reference-regions-v4.geojson')
       .then(response => {
         if (!response.ok) {
-          throw new Error('Network response was not ok');
+          throw new Error("Could not fetch or parse the GeoJSON file. Please ensure the file 'IPCC-WGI-reference-regions-v4.geojson' exists in the 'public/data/' directory.");
         }
         return response.json();
       })
@@ -197,10 +196,24 @@ export default function MapComponent({ regionTemperatureData }: MapComponentProp
             featureProjection: 'EPSG:3857'
         });
         const features = format.readFeatures(data);
+        
+        // Sort features to render MultiPolygons on top of Polygons
+        features.sort((a, b) => {
+          const geomA = a.getGeometry()?.getType();
+          const geomB = b.getGeometry()?.getType();
+          if (geomA === 'MultiPolygon' && geomB !== 'MultiPolygon') {
+            return 1;
+          }
+          if (geomA !== 'MultiPolygon' && geomB === 'MultiPolygon') {
+            return -1;
+          }
+          return 0;
+        });
+        
         regionsSource.addFeatures(features);
       })
       .catch(error => {
-        console.error("Could not fetch or parse the GeoJSON file. Please ensure the file 'IPCC-WGI-reference-regions-v4.geojson' exists in the 'public/data/' directory.", error);
+        console.error(error);
       });
 
     return () => {
