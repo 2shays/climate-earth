@@ -17,6 +17,7 @@ import type { MapBrowserEvent } from 'ol';
 import type { FeatureLike } from 'ol/Feature';
 import TileLayer from 'ol/layer/Tile';
 import OSM from 'ol/source/OSM';
+import { getArea } from 'ol/extent';
 
 type MapComponentProps = {
   regionTemperatureData: RegionYearlyTemperatureData | undefined;
@@ -24,38 +25,43 @@ type MapComponentProps = {
 
 // Helper function to get color from temperature
 function getColorFromTemp(temp: number) {
-  const alpha = 0.25; // Lower opacity as requested
+  const alpha = 0.25;
   const normalizedTemp = (temp - TEMP_RANGE.min) / (TEMP_RANGE.max - TEMP_RANGE.min);
 
+  let r, g, b;
+
   if (normalizedTemp < 0.25) {
-    const r = 102;
-    const g = 178 + (normalizedTemp / 0.25) * (255 - 178);
-    const b = 255;
-    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+      // Blue to Cyan
+      r = 102;
+      g = 178 + (normalizedTemp / 0.25) * (255 - 178);
+      b = 255;
   } else if (normalizedTemp < 0.5) {
-    const r = 102 + ((normalizedTemp - 0.25) / 0.25) * (255 - 102);
-    const g = 255;
-    const b = 255 - ((normalizedTemp - 0.25) / 0.25) * 255;
-    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+      // Cyan to Green/Yellow
+      r = 102 + ((normalizedTemp - 0.25) / 0.25) * (255 - 102);
+      g = 255;
+      b = 255 - ((normalizedTemp - 0.25) / 0.25) * 255;
   } else if (normalizedTemp < 0.75) {
-    const r = 255;
-    const g = 255 - ((normalizedTemp - 0.5) / 0.25) * (255 - 165);
-    const b = 0;
-    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+      // Yellow to Orange
+      r = 255;
+      g = 255 - ((normalizedTemp - 0.5) / 0.25) * (255 - 165);
+      b = 0;
   } else {
-    const r = 255;
-    const g = 165 - ((normalizedTemp - 0.75) / 0.25) * 165;
-    const b = 0;
-    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+      // Orange to Red
+      r = 255;
+      g = 165 - ((normalizedTemp - 0.75) / 0.25) * 165;
+      b = 0;
   }
+
+  return `rgba(${Math.round(r)}, ${Math.round(g)}, ${Math.round(b)}, ${alpha})`;
 }
+
 
 const defaultRegionStyle = new Style({
   fill: new Fill({
     color: 'rgba(255, 255, 255, 0.0)', // Transparent fill
   }),
   stroke: new Stroke({
-    color: 'rgba(255, 255, 255, 0.4)',
+    color: 'rgba(255, 255, 255, 0.0)', // Transparent stroke
     width: 1,
   }),
 });
@@ -82,7 +88,12 @@ export default function MapComponent({ regionTemperatureData }: MapComponentProp
   // Keep a ref to the latest temp data to use in the style function
   useEffect(() => {
     regionTempDataRef.current = regionTemperatureData;
+    const source = regionsLayer.current?.getSource();
+    if (source) {
+      source.changed(); // Force redraw
+    }
   }, [regionTemperatureData]);
+
 
   // Initialize map
   useEffect(() => {
@@ -115,6 +126,7 @@ export default function MapComponent({ regionTemperatureData }: MapComponentProp
     highlightLayer.current = new VectorLayer({
         source: new VectorSource(),
         style: highlightStyle,
+        zIndex: 10 // Ensure highlight is on top
     });
 
     const tooltipOverlay = new Overlay({
@@ -140,46 +152,69 @@ export default function MapComponent({ regionTemperatureData }: MapComponentProp
     let selectedFeature: FeatureLike | null = null;
 
     mapInstance.current.on('pointermove', (evt: MapBrowserEvent<UIEvent>) => {
-      if (evt.dragging || !tooltipRef.current || !mapInstance.current) {
-        tooltipOverlay.setPosition(undefined);
-        return;
-      }
-      const pixel = mapInstance.current.getEventPixel(evt.originalEvent);
+        if (evt.dragging || !tooltipRef.current || !mapInstance.current) {
+          tooltipOverlay.setPosition(undefined);
+          return;
+        }
+        const pixel = mapInstance.current.getEventPixel(evt.originalEvent);
       
-      const feature = mapInstance.current.forEachFeatureAtPixel(pixel, f => f, {
-          layerFilter: l => l === regionsLayer.current,
+        const featuresAtPixel: FeatureLike[] = [];
+        mapInstance.current.forEachFeatureAtPixel(
+          pixel,
+          (f) => {
+            featuresAtPixel.push(f);
+          },
+          {
+            layerFilter: (l) => l === regionsLayer.current,
+          }
+        );
+      
+        let smallestFeature: FeatureLike | null = null;
+        if (featuresAtPixel.length > 0) {
+          smallestFeature = featuresAtPixel.reduce((prev, curr) => {
+            const prevExtent = prev.getGeometry()?.getExtent();
+            const currExtent = curr.getGeometry()?.getExtent();
+            if (prevExtent && currExtent) {
+              return getArea(prevExtent) < getArea(currExtent) ? prev : curr;
+            }
+            return prev;
+          });
+        }
+      
+        const highlightSource = highlightLayer.current?.getSource();
+        if (!highlightSource) return;
+      
+        // If the selected feature is not the new smallest feature, remove it
+        if (selectedFeature && selectedFeature !== smallestFeature) {
+          highlightSource.removeFeature(selectedFeature as Feature<Geometry>);
+          selectedFeature = null;
+        }
+      
+        // If there's a new smallest feature, add it
+        if (smallestFeature && smallestFeature !== selectedFeature) {
+          highlightSource.addFeature(smallestFeature as Feature<Geometry>);
+          selectedFeature = smallestFeature;
+        }
+      
+        const currentTempData = regionTempDataRef.current;
+        if (selectedFeature && currentTempData) {
+          const regionAcronym = selectedFeature.get('Acronym');
+          const regionName = selectedFeature.get('Name');
+          const temp = currentTempData.regionTemps[regionAcronym];
+      
+          if (temp !== undefined) {
+            tooltipRef.current.innerHTML = `<b>${regionName} (${regionAcronym})</b><br>${temp.toFixed(
+              2
+            )}°C`;
+            tooltipOverlay.setPosition(evt.coordinate);
+          } else {
+            tooltipOverlay.setPosition(undefined);
+          }
+        } else {
+          tooltipOverlay.setPosition(undefined);
+        }
       });
       
-      const highlightSource = highlightLayer.current?.getSource();
-      if (!highlightSource) return;
-
-      if (selectedFeature && selectedFeature !== feature) {
-         highlightSource.removeFeature(selectedFeature as Feature<Geometry>);
-         selectedFeature = null;
-      }
-      
-      if (feature && feature !== selectedFeature) {
-          highlightSource.addFeature(feature as Feature<Geometry>);
-          selectedFeature = feature;
-      }
-      
-      const currentTempData = regionTempDataRef.current;
-      if (feature && currentTempData) {
-          const regionAcronym = feature.get('Acronym');
-          const regionName = feature.get('Name');
-          const temp = currentTempData.regionTemps[regionAcronym];
-          
-          if (temp !== undefined) {
-              tooltipRef.current.innerHTML = `<b>${regionName} (${regionAcronym})</b><br>${temp.toFixed(2)}°C`;
-              tooltipOverlay.setPosition(evt.coordinate);
-          } else {
-             tooltipOverlay.setPosition(undefined);
-          }
-      } else {
-          tooltipOverlay.setPosition(undefined);
-      }
-    });
-    
     fetch('/data/IPCC-WGI-reference-regions-v4.geojson')
       .then(response => {
         if (!response.ok) {
@@ -193,16 +228,6 @@ export default function MapComponent({ regionTemperatureData }: MapComponentProp
             featureProjection: 'EPSG:3857'
         });
         const features = format.readFeatures(data);
-
-        // Sort features to draw complex ones on top to solve hover issue
-        features.sort((a, b) => {
-            const geomA = a.getGeometry()?.getType();
-            const geomB = b.getGeometry()?.getType();
-            if (geomA === 'Polygon' && geomB === 'MultiPolygon') return 1;
-            if (geomA === 'MultiPolygon' && geomB === 'Polygon') return -1;
-            return 0;
-        });
-
         allFeaturesRef.current = features;
         // Initial load with data if available
         if (regionTempDataRef.current) {
