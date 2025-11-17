@@ -4,12 +4,9 @@ import 'ol/ol.css';
 import React, { useRef, useEffect, useState } from 'react';
 import Map from 'ol/Map';
 import View from 'ol/View';
-import TileLayer from 'ol/layer/Tile';
 import VectorLayer from 'ol/layer/Vector';
-import OSM from 'ol/source/OSM';
 import VectorSource from 'ol/source/Vector';
 import GeoJSON from 'ol/format/GeoJSON';
-import { fromLonLat } from 'ol/proj';
 import { TEMP_RANGE } from '@/lib/data';
 import { Style, Fill, Stroke } from 'ol/style';
 import Feature from 'ol/Feature';
@@ -18,6 +15,7 @@ import type { RegionYearlyTemperatureData } from '@/lib/region-data';
 import { Overlay } from 'ol';
 import type { MapBrowserEvent } from 'ol';
 import type { FeatureLike } from 'ol/Feature';
+import { getCenter } from 'ol/extent';
 
 type MapComponentProps = {
   regionTemperatureData: RegionYearlyTemperatureData | undefined;
@@ -26,31 +24,24 @@ type MapComponentProps = {
 // Helper function to get color from temperature
 function getColorFromTemp(temp: number) {
   const normalizedTemp = (temp - TEMP_RANGE.min) / (TEMP_RANGE.max - TEMP_RANGE.min);
-  const alpha = 0.25; // Reduced Opacity
+  const alpha = 0.25;
 
-  // Blue (#66B2FF) -> Cyan (#7FFFD4)
   if (normalizedTemp < 0.25) {
     const r = 102 + (normalizedTemp / 0.25) * (127 - 102);
     const g = 178 + (normalizedTemp / 0.25) * (255 - 178);
     const b = 255 - (normalizedTemp / 0.25) * (255 - 212);
     return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-  } 
-  // Cyan (#7FFFD4) -> Yellow (#FFFF00)
-  else if (normalizedTemp < 0.5) {
+  } else if (normalizedTemp < 0.5) {
     const r = 127 + ((normalizedTemp - 0.25) / 0.25) * (255 - 127);
     const g = 255;
     const b = 212 - ((normalizedTemp - 0.25) / 0.25) * 212;
     return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-  } 
-  // Yellow (#FFFF00) -> Orange (#FFA500)
-  else if (normalizedTemp < 0.75) {
+  } else if (normalizedTemp < 0.75) {
     const r = 255;
     const g = 255 - ((normalizedTemp - 0.5) / 0.25) * (255 - 165);
     const b = 0;
     return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-  } 
-  // Orange (#FFA500) -> Coral (#FF7F50)
-  else {
+  } else {
     const r = 255;
     const g = 165 - ((normalizedTemp - 0.75) / 0.25) * (165 - 127);
     const b = 0 + ((normalizedTemp - 0.75) / 0.25) * (80 - 0);
@@ -60,10 +51,10 @@ function getColorFromTemp(temp: number) {
 
 const defaultRegionStyle = new Style({
   fill: new Fill({
-    color: 'rgba(255, 255, 255, 0.0)', // Transparent fill
+    color: 'rgba(255, 255, 255, 0.0)',
   }),
   stroke: new Stroke({
-    color: 'rgba(255, 255, 255, 0.4)', // Lighter grey stroke for all regions
+    color: 'rgba(255, 255, 255, 0.4)',
     width: 1,
   }),
 });
@@ -86,7 +77,6 @@ export default function MapComponent({ regionTemperatureData }: MapComponentProp
   const highlightLayer = useRef<VectorLayer<VectorSource<Feature<Geometry>>> | null>(null);
   const temperatureDataRef = useRef(regionTemperatureData);
 
-  // Keep a ref to the latest temperature data to avoid stale closures in the style function
   useEffect(() => {
     temperatureDataRef.current = regionTemperatureData;
   }, [regionTemperatureData]);
@@ -129,15 +119,13 @@ export default function MapComponent({ regionTemperatureData }: MapComponentProp
     mapInstance.current = new Map({
       target: mapRef.current,
       layers: [
-        new TileLayer({
-          source: new OSM(),
-        }),
         regionsLayer.current,
         highlightLayer.current
       ],
       view: new View({
-        center: fromLonLat([0, 20]),
-        zoom: 2,
+        center: [0, 0],
+        zoom: 0,
+        projection: undefined, // Use pixel coordinates
       }),
       overlays: [tooltipOverlay],
     });
@@ -192,12 +180,26 @@ export default function MapComponent({ regionTemperatureData }: MapComponentProp
         return response.json();
       })
       .then(data => {
-        const format = new GeoJSON({
-            dataProjection: 'EPSG:4326',
-            featureProjection: 'EPSG:3857'
-        });
+        const format = new GeoJSON();
         const features = format.readFeatures(data);
+
+        // Sort features to draw complex ones on top
+        features.sort((a, b) => {
+            const geomA = a.getGeometry()?.getType();
+            const geomB = b.getGeometry()?.getType();
+            if (geomA === 'Polygon' && geomB === 'MultiPolygon') return -1;
+            if (geomA === 'MultiPolygon' && geomB === 'Polygon') return 1;
+            return 0;
+        });
+
         regionsSource.addFeatures(features);
+
+        // Adjust view to fit the features
+        const extent = regionsSource.getExtent();
+        mapInstance.current?.getView().fit(extent, {
+          padding: [10, 10, 10, 10],
+          size: mapInstance.current.getSize(),
+        });
       })
       .catch(error => {
         console.error(error);
@@ -209,7 +211,6 @@ export default function MapComponent({ regionTemperatureData }: MapComponentProp
     };
   }, []);
 
-  // Update region colors based on temperature data
   useEffect(() => {
     if (regionsLayer.current) {
         regionsLayer.current.getSource()?.changed();
