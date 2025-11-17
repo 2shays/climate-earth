@@ -2,8 +2,8 @@
 "use client";
 
 import { useState, useEffect, useCallback, useTransition, useMemo } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { getRegionYears, getRegionDataForYear, RegionYearlyTemperatureData, Scenario } from '@/lib/region-data';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { getCombinedYears, getCombinedDataForYear, Scenario } from '@/lib/region-data';
 
 import MapComponent from '@/components/map-component';
 import YearSlider from '@/components/year-slider';
@@ -13,22 +13,24 @@ import { Label } from './ui/label';
 import { Separator } from './ui/separator';
 
 const SCENARIOS: { id: Scenario, name: string }[] = [
-    { id: 'Historical', name: 'Historical' },
     { id: 'SSP1', name: 'SSP1: Sustainability' },
+    { id: 'SSP2', name: 'SSP2: Middle of the Road' },
+    { id: 'SSP3', name: 'SSP3: Regional Rivalry' },
+    { id: 'SSP5', name: 'SSP5: Fossil-Fueled Development' },
 ];
 
 export default function TemporalAtlasView() {
   const [years, setYears] = useState<number[]>([]);
   const [selectedYear, setSelectedYear] = useState<number | undefined>();
-  const [selectedScenario, setSelectedScenario] = useState<Scenario>('Historical');
-  const [temperatureData, setTemperatureData] = useState<RegionYearlyTemperatureData | undefined>();
+  const [selectedScenario, setSelectedScenario] = useState<Scenario>('SSP2');
+  const [temperatureData, setTemperatureData] = useState<any>();
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [isDataLoading, startDataTransition] = useTransition();
 
   const loadInitialData = async (scenario: Scenario) => {
     setIsInitialLoading(true);
     try {
-      const availableYears = await getRegionYears(scenario);
+      const availableYears = await getCombinedYears(scenario);
       setYears(availableYears);
       if (availableYears.length > 0) {
         const defaultYear = 2014;
@@ -37,7 +39,7 @@ export default function TemporalAtlasView() {
           : availableYears[Math.floor(availableYears.length / 2)];
         
         setSelectedYear(initialYear);
-        const initialData = await getRegionDataForYear(scenario, initialYear);
+        const initialData = await getCombinedDataForYear(scenario, initialYear);
         setTemperatureData(initialData);
       } else {
         setYears([]);
@@ -59,7 +61,7 @@ export default function TemporalAtlasView() {
     setSelectedYear(year);
     startDataTransition(async () => {
       try {
-        const data = await getRegionDataForYear(selectedScenario, year);
+        const data = await getCombinedDataForYear(selectedScenario, year);
         setTemperatureData(data);
       } catch (error) {
         console.error(`Failed to load data for year ${year}:`, error);
@@ -75,7 +77,7 @@ export default function TemporalAtlasView() {
   const globalAverageTemp = useMemo(() => {
     if (!temperatureData?.regionTemps) return null;
 
-    const temps = Object.values(temperatureData.regionTemps);
+    const temps = Object.values(temperatureData.regionTemps as Record<string, number>);
     if (temps.length === 0) return null;
 
     const sum = temps.reduce((acc, temp) => acc + temp, 0);

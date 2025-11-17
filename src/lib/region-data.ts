@@ -8,17 +8,26 @@ export type RegionYearlyTemperatureData = {
   regionTemps: RegionTemperatures;
 };
 
-export type Scenario = 'Historical' | 'SSP1';
+export type Scenario = 'SSP1' | 'SSP2' | 'SSP3' | 'SSP5';
+type InternalScenario = Scenario | 'Historical';
 
-const scenarioFiles: Record<Scenario, string> = {
+const scenarioFiles: Record<InternalScenario, string> = {
   'Historical': '/data/CMIP6_ACCESS-CM2_historical_r1i1p1f1.csv',
   'SSP1': '/data/CMIP6_ACCESS-CM2_ssp126_r1i1p1f1.csv',
+  'SSP2': '/data/CMIP6_ACCESS-CM2_ssp245_r1i1p1f1.csv',
+  'SSP3': '/data/CMIP6_ACCESS-CM2_ssp370_r1i1p1f1.csv',
+  'SSP5': '/data/CMIP6_ACCESS-CM2_ssp585_r1i1p1f1.csv',
 };
 
-let cachedData: { [scenario in Scenario]?: { [year: number]: RegionTemperatures } } = {};
-let allYears: { [scenario in Scenario]?: number[] } = {};
+let cachedData: { [scenario in InternalScenario]?: { [year: number]: RegionTemperatures } } = {};
+let allYears: { [scenario in InternalScenario]?: number[] } = {};
 
-async function parseCSV(scenario: Scenario): Promise<void> {
+async function parseCSV(scenario: InternalScenario): Promise<void> {
+  // If data for this scenario is already cached, do nothing.
+  if (cachedData[scenario]) {
+    return;
+  }
+  
   const filePath = scenarioFiles[scenario];
   const response = await fetch(filePath);
   if (!response.ok) {
@@ -35,7 +44,6 @@ async function parseCSV(scenario: Scenario): Promise<void> {
   for (let i = 1; i < lines.length; i++) {
     const values = lines[i].split(',');
     const date = values[0];
-    // Handle different date formats if necessary, assuming YYYY-MM-DD or YYYY-M-D
     const year = parseInt(date.substring(0, 4), 10);
 
     if (!yearlyAverages[year]) {
@@ -59,7 +67,7 @@ async function parseCSV(scenario: Scenario): Promise<void> {
   Object.keys(yearlyAverages).forEach(yearStr => {
     const year = parseInt(yearStr, 10);
     scenarioData[year] = {};
-    regionAcronyms!.forEach(acronym => {
+    regionAcronyms.forEach(acronym => {
       const { sum, count } = yearlyAverages[year][acronym];
       scenarioData[year][acronym] = count > 0 ? sum / count : 0;
     });
@@ -69,22 +77,41 @@ async function parseCSV(scenario: Scenario): Promise<void> {
   allYears[scenario] = Object.keys(scenarioData).map(Number).sort((a, b) => a - b);
 }
 
-async function ensureDataLoaded(scenario: Scenario) {
+async function ensureDataLoaded(scenario: InternalScenario) {
   if (!cachedData[scenario]) {
     await parseCSV(scenario);
   }
 }
 
-export async function getRegionDataForYear(scenario: Scenario, year: number): Promise<RegionYearlyTemperatureData> {
-  await ensureDataLoaded(scenario);
-  const scenarioCache = cachedData[scenario];
-  if (scenarioCache && scenarioCache[year]) {
-    return { year, regionTemps: scenarioCache[year] };
-  }
-  throw new Error(`Data for year ${year} in scenario ${scenario} not found.`);
+async function ensureCombinedDataLoaded(scenario: Scenario) {
+    await ensureDataLoaded('Historical');
+    await ensureDataLoaded(scenario);
 }
 
-export async function getRegionYears(scenario: Scenario): Promise<number[]> {
-  await ensureDataLoaded(scenario);
-  return allYears[scenario] || [];
+export async function getCombinedDataForYear(scenario: Scenario, year: number): Promise<RegionYearlyTemperatureData> {
+    await ensureCombinedDataLoaded(scenario);
+    
+    const historicalData = cachedData['Historical'];
+    const scenarioData = cachedData[scenario];
+
+    if (historicalData && historicalData[year]) {
+        return { year, regionTemps: historicalData[year] };
+    }
+
+    if (scenarioData && scenarioData[year]) {
+        return { year, regionTemps: scenarioData[year] };
+    }
+
+    throw new Error(`Data for year ${year} in scenario ${scenario} not found.`);
+}
+
+
+export async function getCombinedYears(scenario: Scenario): Promise<number[]> {
+    await ensureCombinedDataLoaded(scenario);
+    
+    const historicalYears = allYears['Historical'] || [];
+    const scenarioYears = allYears[scenario] || [];
+
+    const combined = Array.from(new Set([...historicalYears, ...scenarioYears])).sort((a, b) => a - b);
+    return combined;
 }
