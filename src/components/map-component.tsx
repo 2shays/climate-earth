@@ -1,7 +1,7 @@
 'use client';
 
 import 'ol/ol.css';
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect } from 'react';
 import Map from 'ol/Map';
 import View from 'ol/View';
 import VectorLayer from 'ol/layer/Vector';
@@ -77,6 +77,12 @@ export default function MapComponent({ regionTemperatureData }: MapComponentProp
   const regionsLayer = useRef<VectorLayer<VectorSource<Feature<Geometry>>> | null>(null);
   const highlightLayer = useRef<VectorLayer<VectorSource<Feature<Geometry>>> | null>(null);
   const allFeaturesRef = useRef<Feature<Geometry>[]>([]);
+  const regionTempDataRef = useRef<RegionYearlyTemperatureData>();
+
+  // Keep a ref to the latest temp data to use in the style function
+  useEffect(() => {
+    regionTempDataRef.current = regionTemperatureData;
+  }, [regionTemperatureData]);
 
   // Initialize map
   useEffect(() => {
@@ -93,8 +99,9 @@ export default function MapComponent({ regionTemperatureData }: MapComponentProp
       source: regionsSource,
       style: (feature) => {
         const acronym = feature.get('Acronym');
-        if (regionTemperatureData && regionTemperatureData.regionTemps[acronym] !== undefined) {
-          const temp = regionTemperatureData.regionTemps[acronym];
+        const currentTempData = regionTempDataRef.current;
+        if (currentTempData && currentTempData.regionTemps[acronym] !== undefined) {
+          const temp = currentTempData.regionTemps[acronym];
           const color = getColorFromTemp(temp);
           return new Style({
             fill: new Fill({ color }),
@@ -155,11 +162,12 @@ export default function MapComponent({ regionTemperatureData }: MapComponentProp
           highlightSource.addFeature(feature as Feature<Geometry>);
           selectedFeature = feature;
       }
-
-      if (feature) {
+      
+      const currentTempData = regionTempDataRef.current;
+      if (feature && currentTempData) {
           const regionAcronym = feature.get('Acronym');
           const regionName = feature.get('Name');
-          const temp = regionTemperatureData?.regionTemps[regionAcronym];
+          const temp = currentTempData.regionTemps[regionAcronym];
           
           if (temp !== undefined) {
               tooltipRef.current.innerHTML = `<b>${regionName} (${regionAcronym})</b><br>${temp.toFixed(2)}°C`;
@@ -196,7 +204,17 @@ export default function MapComponent({ regionTemperatureData }: MapComponentProp
         });
 
         allFeaturesRef.current = features;
-        regionsSource.addFeatures(features);
+        // Initial load with data if available
+        if (regionTempDataRef.current) {
+            const source = regionsLayer.current?.getSource();
+            if(source) {
+                const featuresWithData = allFeaturesRef.current.filter(feature => {
+                    const acronym = feature.get('Acronym');
+                    return regionTempDataRef.current!.regionTemps[acronym] !== undefined;
+                });
+                source.addFeatures(featuresWithData);
+            }
+        }
       })
       .catch(error => {
         console.error(error);
@@ -206,7 +224,7 @@ export default function MapComponent({ regionTemperatureData }: MapComponentProp
       mapInstance.current?.setTarget(undefined);
       mapInstance.current = null;
     };
-  }, []); // Empty dependency array ensures this runs once on mount. Tooltip logic depends on regionTemperatureData, which is handled in the other effect.
+  }, []);
 
   useEffect(() => {
     const source = regionsLayer.current?.getSource();
