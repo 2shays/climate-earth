@@ -116,7 +116,7 @@ export default function MapComponent({ temperatureData }: MapComponentProps) {
       });
     
     // Fetch custom regions
-    fetch('/data/regions.geojson')
+    fetch('/data/IPCC-WGI-reference-regions-v4.geojson')
       .then(response => {
         if (!response.ok) {
           throw new Error('Network response was not ok');
@@ -131,7 +131,7 @@ export default function MapComponent({ temperatureData }: MapComponentProps) {
         regionsSource.addFeatures(features);
       })
       .catch(error => {
-        console.error("Could not fetch or parse 'regions.geojson'. Make sure the file exists at 'public/data/regions.geojson'.", error);
+        console.error("Could not fetch or parse 'regions.geojson'. Make sure the file exists at 'public/data/IPCC-WGI-reference-regions-v4.geojson'.", error);
       });
 
     return () => {
