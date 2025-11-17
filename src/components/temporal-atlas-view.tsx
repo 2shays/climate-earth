@@ -150,8 +150,8 @@ export default function TemporalAtlasView() {
       <div className={`absolute inset-0 z-10 bg-background/50 transition-opacity duration-300 ${isDataLoading ? 'opacity-100' : 'opacity-0'} pointer-events-none`} />
       <MapComponent regionTemperatureData={temperatureData} />
 
-      <header className="absolute top-0 left-0 w-full p-4 md:p-6 z-20 flex justify-end items-start">
-        <Card className="w-full max-w-xs bg-card/80 backdrop-blur-sm">
+      <header className="absolute top-0 left-0 w-full p-4 md:p-6 z-20 flex justify-end items-start pointer-events-none">
+        <Card className="w-full max-w-xs bg-card/80 backdrop-blur-sm pointer-events-auto">
             <CardHeader className="p-4 pb-2">
                 <Label className="text-xs font-normal text-muted-foreground">Shared Socioeconomic Pathways</Label>
                  <Select value={selectedScenario} onValueChange={handleScenarioChange}>
