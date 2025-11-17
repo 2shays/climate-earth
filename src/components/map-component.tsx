@@ -222,16 +222,6 @@ export default function MapComponent({ regionTemperatureData }: MapComponentProp
             featureProjection: 'EPSG:3857'
         });
         const features = format.readFeatures(data);
-
-        // Sort features to draw complex ones (land) over simple ones (ocean)
-        features.sort((a, b) => {
-            const geomA = a.getGeometry();
-            const geomB = b.getGeometry();
-            if (geomA?.getType() === 'MultiPolygon' && geomB?.getType() !== 'MultiPolygon') return 1;
-            if (geomA?.getType() !== 'MultiPolygon' && geomB?.getType() === 'MultiPolygon') return -1;
-            return 0;
-        });
-
         allFeaturesRef.current = features;
         // Initial load with data if available
         const source = regionsLayer.current?.getSource();
@@ -248,8 +238,10 @@ export default function MapComponent({ regionTemperatureData }: MapComponentProp
       });
 
     return () => {
-      mapInstance.current?.setTarget(undefined);
-      mapInstance.current = null;
+      if (mapInstance.current) {
+        mapInstance.current.dispose();
+        mapInstance.current = null;
+      }
     };
   }, []);
 
