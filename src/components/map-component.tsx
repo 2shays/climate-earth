@@ -60,10 +60,10 @@ function getColorFromTemp(temp: number) {
 
 const defaultRegionStyle = new Style({
   fill: new Fill({
-    color: 'rgba(128, 128, 128, 0.2)', // Neutral grey fill
+    color: 'rgba(255, 255, 255, 0.0)', // Transparent fill
   }),
   stroke: new Stroke({
-    color: '#888888', // Lighter grey stroke
+    color: 'rgba(255, 255, 255, 0.4)', // Lighter grey stroke for all regions
     width: 1,
   }),
 });
@@ -158,14 +158,17 @@ export default function MapComponent({ regionTemperatureData }: MapComponentProp
       const highlightSource = highlightLayer.current!.getSource();
       if (!highlightSource) return;
 
-      if (selectedFeature) {
-        highlightSource.removeFeature(selectedFeature as Feature<Geometry>);
+      // Clear previous highlight
+      if (selectedFeature && selectedFeature !== feature) {
+         highlightSource.removeFeature(selectedFeature as Feature<Geometry>);
       }
       
-      if (feature) {
+      if (feature && feature !== selectedFeature) {
           selectedFeature = feature;
           highlightSource.addFeature(feature as Feature<Geometry>);
-          
+      }
+
+      if (feature) {
           const regionAcronym = feature.get('Acronym');
           const regionName = feature.get('Name');
           const temp = temperatureDataRef.current?.regionTemps[regionAcronym];
