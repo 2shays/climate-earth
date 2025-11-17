@@ -14,7 +14,7 @@ type YearSliderProps = {
 
 export default function YearSlider({ years, value, onValueChange, onValueCommit, isLoading }: YearSliderProps) {
   const valueIndex = useMemo(() => {
-    if (!years || years.length === 0) return 0;
+    if (!years || years.length === 0 || typeof value !== 'number' || isNaN(value)) return 0;
     const index = years.indexOf(value);
     return index === -1 ? 0 : index;
   }, [years, value]);
