@@ -103,7 +103,9 @@ export default function MapComponent({ regionTemperatureData }: MapComponentProp
     if (!mapRef.current || !tooltipRef.current || mapInstance.current) return;
 
     const mapBackgroundLayer = new TileLayer({
-        source: new OSM(),
+        source: new OSM({
+            wrapX: false
+        }),
         opacity: 0.8,
     });
       

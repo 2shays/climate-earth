@@ -33,7 +33,7 @@ export default function TemporalAtlasView() {
       const availableYears = await getCombinedYears(scenario);
       setYears(availableYears);
       if (availableYears.length > 0) {
-        const defaultYear = 2014;
+        const defaultYear = 2025;
         const initialYear = availableYears.includes(defaultYear)
           ? defaultYear
           : availableYears[Math.floor(availableYears.length / 2)];
