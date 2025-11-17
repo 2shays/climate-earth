@@ -46,10 +46,13 @@ export default function YearSlider({ years, value, onValueChange, onValueCommit,
 
   const showPreIndustrialLabel = years[0] < PRE_INDUSTRIAL_END_YEAR && years[years.length -1] > PRE_INDUSTRIAL_END_YEAR;
 
+  const PlayIcon = useMemo(() => <Play className="h-6 w-6" />, []);
+  const PauseIcon = useMemo(() => <Pause className="h-6 w-6" />, []);
+
   return (
     <div className="w-full flex-grow flex items-center gap-4 px-4 md:px-0">
       <Button variant="ghost" size="icon" onClick={onTogglePlay} disabled={isLoading || years.length === 0}>
-        {isPlaying ? <Pause className="h-6 w-6" /> : <Play className="h-6 w-6" />}
+        {isPlaying ? PauseIcon : PlayIcon}
         <span className="sr-only">{isPlaying ? "Pause" : "Play"}</span>
       </Button>
       <div className="flex-grow relative pt-4">
