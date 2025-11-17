@@ -1,3 +1,4 @@
+
 export type RegionTemperatures = {
   [regionAcronym: string]: number;
 };
