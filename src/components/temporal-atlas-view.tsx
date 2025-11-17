@@ -128,15 +128,17 @@ export default function TemporalAtlasView() {
                 Loading data...
               </div>
             ) : (
-              <YearSlider
-                years={years}
-                value={selectedYear}
-                onValueChange={handleYearChange}
-                onValueCommit={handleYearChange}
-                isLoading={isDataLoading}
-              />
+              <>
+                <YearSlider
+                  years={years}
+                  value={selectedYear}
+                  onValueChange={handleYearChange}
+                  onValueCommit={handleYearChange}
+                  isLoading={isDataLoading}
+                />
+                <TemperatureLegend />
+              </>
             )}
-            <TemperatureLegend />
           </CardContent>
         </Card>
       </footer>
