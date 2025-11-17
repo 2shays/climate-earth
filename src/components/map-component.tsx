@@ -15,7 +15,6 @@ import type { RegionYearlyTemperatureData } from '@/lib/region-data';
 import { Overlay } from 'ol';
 import type { MapBrowserEvent } from 'ol';
 import type { FeatureLike } from 'ol/Feature';
-import { getCenter } from 'ol/extent';
 
 type MapComponentProps = {
   regionTemperatureData: RegionYearlyTemperatureData | undefined;
