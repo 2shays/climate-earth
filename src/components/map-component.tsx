@@ -27,31 +27,34 @@ type MapComponentProps = {
 function getColorFromTemp(temp: number) {
   const normalizedTemp = (temp - TEMP_RANGE.min) / (TEMP_RANGE.max - TEMP_RANGE.min);
   const alpha = 0.5; // Reduced Opacity
-  
+
+  // Blue (#66B2FF) -> Cyan (#7FFFD4)
   if (normalizedTemp < 0.25) {
-      // Blue to Cyan
-      const r = 102;
-      const g = 178 + (normalizedTemp / 0.25) * (255-178);
-      const b = 255;
-      return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-  } else if (normalizedTemp < 0.5) {
-      // Cyan to Green-Yellow
-      const r = 127 + ((normalizedTemp - 0.25) / 0.25) * (255-127);
-      const g = 255;
-      const b = 212 - ((normalizedTemp - 0.25) / 0.25) * (212-0);
-      return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-  } else if (normalizedTemp < 0.75) {
-      // Green-Yellow to Orange
-      const r = 255;
-      const g = 255 - ((normalizedTemp - 0.5) / 0.25) * (255-165);
-      const b = 0;
-      return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-  } else {
-      // Orange to Red-Orange (Coral)
-      const r = 255;
-      const g = 165 - ((normalizedTemp - 0.75) / 0.25) * (165-127);
-      const b = 0 + ((normalizedTemp - 0.75) / 0.25) * (80-0);
-      return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    const r = 102 + (normalizedTemp / 0.25) * (127 - 102);
+    const g = 178 + (normalizedTemp / 0.25) * (255 - 178);
+    const b = 255 - (normalizedTemp / 0.25) * (255 - 212);
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  } 
+  // Cyan (#7FFFD4) -> Yellow (#FFFF00)
+  else if (normalizedTemp < 0.5) {
+    const r = 127 + ((normalizedTemp - 0.25) / 0.25) * (255 - 127);
+    const g = 255;
+    const b = 212 - ((normalizedTemp - 0.25) / 0.25) * 212;
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  } 
+  // Yellow (#FFFF00) -> Orange (#FFA500)
+  else if (normalizedTemp < 0.75) {
+    const r = 255;
+    const g = 255 - ((normalizedTemp - 0.5) / 0.25) * (255 - 165);
+    const b = 0;
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  } 
+  // Orange (#FFA500) -> Coral (#FF7F50)
+  else {
+    const r = 255;
+    const g = 165 - ((normalizedTemp - 0.75) / 0.25) * (165 - 127);
+    const b = 0 + ((normalizedTemp - 0.75) / 0.25) * (80 - 0);
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
   }
 }
 
