@@ -193,23 +193,10 @@ export default function MapComponent({ regionTemperatureData }: MapComponentProp
       })
       .then(data => {
         const format = new GeoJSON({
+            dataProjection: 'EPSG:4326',
             featureProjection: 'EPSG:3857'
         });
         const features = format.readFeatures(data);
-        
-        // Sort features to render MultiPolygons on top of Polygons
-        features.sort((a, b) => {
-          const geomA = a.getGeometry()?.getType();
-          const geomB = b.getGeometry()?.getType();
-          if (geomA === 'MultiPolygon' && geomB !== 'MultiPolygon') {
-            return 1;
-          }
-          if (geomA !== 'MultiPolygon' && geomB === 'MultiPolygon') {
-            return -1;
-          }
-          return 0;
-        });
-        
         regionsSource.addFeatures(features);
       })
       .catch(error => {
