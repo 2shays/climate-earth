@@ -18,9 +18,7 @@ import type { MapBrowserEvent } from 'ol';
 import type { FeatureLike } from 'ol/Feature';
 import TileLayer from 'ol/layer/Tile';
 import OSM from 'ol/source/OSM';
-import { getArea } from 'ol/extent';
-import { fromLonLat, toLonLat } from 'ol/proj';
-import { getWidth } from 'ol/extent';
+import { fromLonLat } from 'ol/proj';
 
 type MapComponentProps = {
   regionTemperatureData: RegionYearlyTemperatureData | undefined;
@@ -106,10 +104,7 @@ export default function MapComponent({ regionTemperatureData }: MapComponentProp
     if (!mapRef.current || !tooltipRef.current || mapInstance.current) return;
 
     const mapBackgroundLayer = new TileLayer({
-        source: new OSM({
-            wrapX: false
-        }),
-        opacity: 0.8,
+        source: new OSM(),
     });
       
     const regionsSource = new VectorSource();
@@ -163,70 +158,56 @@ export default function MapComponent({ regionTemperatureData }: MapComponentProp
     let selectedFeature: FeatureLike | null = null;
 
     mapInstance.current.on('pointermove', (evt: MapBrowserEvent<UIEvent>) => {
-        if (evt.dragging || !tooltipRef.current || !mapInstance.current) {
-          tooltipOverlay.setPosition(undefined);
-          return;
-        }
-        const pixel = mapInstance.current.getEventPixel(evt.originalEvent);
-      
-        const featuresAtPixel: FeatureLike[] = [];
-        mapInstance.current.forEachFeatureAtPixel(
-          pixel,
-          (f) => {
-            featuresAtPixel.push(f);
-          },
-          {
-            layerFilter: (l) => l === regionsLayer.current,
-          }
-        );
-      
-        let smallestFeature: FeatureLike | null = null;
-        if (featuresAtPixel.length > 0) {
-          smallestFeature = featuresAtPixel.reduce((prev, curr) => {
-            const prevExtent = prev.getGeometry()?.getExtent();
-            const currExtent = curr.getGeometry()?.getExtent();
-            if (prevExtent && currExtent) {
-              return getArea(prevExtent) < getArea(currExtent) ? prev : curr;
-            }
-            return prev;
-          });
-        }
-      
-        const highlightSource = highlightLayer.current?.getSource();
-        if (!highlightSource) return;
-      
-        // If the selected feature is not the new smallest feature, remove it
-        if (selectedFeature && selectedFeature !== smallestFeature) {
-          if (highlightSource.hasFeature(selectedFeature as Feature<Geometry>)) {
+      if (evt.dragging || !tooltipRef.current || !mapInstance.current) {
+        tooltipOverlay.setPosition(undefined);
+        return;
+      }
+      const pixel = mapInstance.current.getEventPixel(evt.originalEvent);
+    
+      // Hit detection
+      const featuresAtPixel: FeatureLike[] = [];
+      mapInstance.current.forEachFeatureAtPixel(pixel, (feature) => {
+        featuresAtPixel.push(feature);
+      }, {
+        layerFilter: (l) => l === regionsLayer.current,
+      });
+    
+      // Prioritize MultiPolygon (land) over Polygon (ocean)
+      const topFeature = featuresAtPixel.find(f => f.getGeometry()?.getType() === 'MultiPolygon') || featuresAtPixel[0];
+
+      const highlightSource = highlightLayer.current?.getSource();
+      if (!highlightSource) return;
+
+      // Update highlight
+      if (topFeature !== selectedFeature) {
+        if (selectedFeature) {
             highlightSource.removeFeature(selectedFeature as Feature<Geometry>);
-          }
-          selectedFeature = null;
         }
-      
-        // If there's a new smallest feature, add it
-        if (smallestFeature && smallestFeature !== selectedFeature) {
-          highlightSource.addFeature(smallestFeature as Feature<Geometry>);
-          selectedFeature = smallestFeature;
+        if (topFeature) {
+            highlightSource.addFeature(topFeature as Feature<Geometry>);
         }
+        selectedFeature = topFeature || null;
+      }
       
-        const currentTempData = regionTempDataRef.current;
-        if (selectedFeature && currentTempData) {
-          const regionAcronym = selectedFeature.get('Acronym');
-          const regionName = selectedFeature.get('Name');
-          const temp = currentTempData.regionTemps[regionAcronym];
-      
-          if (temp !== undefined) {
-            tooltipRef.current.innerHTML = `<b>${regionName} (${regionAcronym})</b><br>${temp.toFixed(
-              2
-            )}°C`;
-            tooltipOverlay.setPosition(evt.coordinate);
-          } else {
-            tooltipOverlay.setPosition(undefined);
-          }
+      // Update tooltip
+      const currentTempData = regionTempDataRef.current;
+      if (topFeature && currentTempData) {
+        const regionAcronym = topFeature.get('Acronym');
+        const regionName = topFeature.get('Name');
+        const temp = currentTempData.regionTemps[regionAcronym];
+    
+        if (temp !== undefined) {
+          tooltipRef.current.innerHTML = `<b>${regionName} (${regionAcronym})</b><br>${temp.toFixed(
+            2
+          )}°C`;
+          tooltipOverlay.setPosition(evt.coordinate);
         } else {
           tooltipOverlay.setPosition(undefined);
         }
-      });
+      } else {
+        tooltipOverlay.setPosition(undefined);
+      }
+    });
       
     fetch('/data/IPCC-WGI-reference-regions-v4.geojson')
       .then(response => {
@@ -283,5 +264,3 @@ export default function MapComponent({ regionTemperatureData }: MapComponentProp
     </>
   );
 }
-
-    
