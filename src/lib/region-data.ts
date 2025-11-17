@@ -23,7 +23,6 @@ let cachedData: { [scenario in InternalScenario]?: { [year: number]: RegionTempe
 let allYears: { [scenario in InternalScenario]?: number[] } = {};
 
 async function parseCSV(scenario: InternalScenario): Promise<void> {
-  // If data for this scenario is already cached, do nothing.
   if (cachedData[scenario]) {
     return;
   }
