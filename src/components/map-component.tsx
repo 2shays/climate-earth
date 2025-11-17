@@ -1,90 +1,78 @@
 'use client';
 
-import React, { useMemo } from 'react';
-import { GoogleMap, useJsApiLoader, HeatmapLayer } from '@react-google-maps/api';
+import 'ol/ol.css';
+import React, { useRef, useEffect } from 'react';
+import Map from 'ol/Map';
+import View from 'ol/View';
+import TileLayer from 'ol/layer/Tile';
+import OSM from 'ol/source/OSM';
+import Heatmap from 'ol/layer/Heatmap';
+import VectorSource from 'ol/source/Vector';
+import Feature from 'ol/Feature';
+import Point from 'ol/geom/Point';
+import { fromLonLat } from 'ol/proj';
 import type { TemperaturePoint } from '@/lib/data';
 import { TEMP_RANGE } from '@/lib/data';
-import { Skeleton } from '@/components/ui/skeleton';
-import { mapStyles } from '@/lib/map-styles';
-
-const containerStyle = {
-  width: '100%',
-  height: '100%'
-};
-
-const center = {
-  lat: 20,
-  lng: 0
-};
-
-const mapOptions = {
-  styles: mapStyles,
-  disableDefaultUI: true,
-  zoomControl: true,
-};
 
 type MapComponentProps = {
   temperatureData: TemperaturePoint[];
 };
 
 export default function MapComponent({ temperatureData }: MapComponentProps) {
-  const googleMapsApiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+  const mapRef = useRef<HTMLDivElement>(null);
+  const mapInstance = useRef<Map | null>(null);
+  const heatmapLayer = useRef<Heatmap | null>(null);
+  const vectorSource = useRef<VectorSource | null>(null);
 
-  const { isLoaded } = useJsApiLoader({
-    id: 'google-map-script',
-    googleMapsApiKey: googleMapsApiKey || "",
-    libraries: ['visualization'],
-    preventGoogleFontsLoading: true,
-  });
+  useEffect(() => {
+    if (!mapRef.current || mapInstance.current) return;
 
-  const heatmapData = useMemo(() => {
-    if (!isLoaded) return [];
-    return temperatureData.map(point => ({
-      location: new google.maps.LatLng(point.lat, point.lng),
-      weight: (point.temp - TEMP_RANGE.min) / (TEMP_RANGE.max - TEMP_RANGE.min)
-    }));
-  }, [temperatureData, isLoaded]);
+    vectorSource.current = new VectorSource();
 
-  if (!googleMapsApiKey) {
-    return (
-        <div className="h-full w-full bg-gray-200 flex items-center justify-center">
-            <div className="text-center text-gray-600 p-4">
-                <h2 className="text-lg font-bold mb-2">Google Maps API Key Missing</h2>
-                <p>Please add your Google Maps API key to the <code>.env</code> file as <code>NEXT_PUBLIC_GOOGLE_MAPS_API_KEY</code>.</p>
-                <p className="mt-2">After adding the key, please restart the development server.</p>
-            </div>
-        </div>
-    );
-  }
+    heatmapLayer.current = new Heatmap({
+      source: vectorSource.current,
+      blur: 15,
+      radius: 10,
+      weight: (feature) => {
+        const temp = feature.get('temp');
+        return (temp - TEMP_RANGE.min) / (TEMP_RANGE.max - TEMP_RANGE.min);
+      },
+    });
 
-  if (!isLoaded) {
-    return <Skeleton className="h-full w-full" />;
-  }
+    mapInstance.current = new Map({
+      target: mapRef.current,
+      layers: [
+        new TileLayer({
+          source: new OSM(),
+        }),
+        heatmapLayer.current,
+      ],
+      view: new View({
+        center: fromLonLat([0, 20]),
+        zoom: 2,
+      }),
+    });
+    
+    return () => {
+      mapInstance.current?.setTarget(undefined);
+      mapInstance.current = null;
+    };
+  }, []);
 
-  return (
-    <GoogleMap
-      mapContainerStyle={containerStyle}
-      center={center}
-      zoom={3}
-      options={mapOptions}
-    >
-      {heatmapData.length > 0 && (
-        <HeatmapLayer
-          data={heatmapData}
-          options={{
-            radius: 20,
-            opacity: 0.8,
-            gradient: [
-              'rgba(102, 178, 255, 0)',
-              'rgba(102, 178, 255, 1)',
-              'rgba(127, 255, 212, 1)',
-              'rgba(255, 255, 0, 1)',
-              'rgba(255, 165, 0, 1)',
-              'rgba(255, 127, 80, 1)',
-            ]
-          }}
-        />
-      )}
-    </GoogleMap>
-  );
+  useEffect(() => {
+    if (!vectorSource.current) return;
+
+    const features = temperatureData.map(point => {
+      const feature = new Feature({
+        geometry: new Point(fromLonLat([point.lng, point.lat])),
+        temp: point.temp,
+      });
+      return feature;
+    });
+
+    vectorSource.current.clear();
+    vectorSource.current.addFeatures(features);
+  }, [temperatureData]);
+
+  return <div ref={mapRef} className="h-full w-full" />;
 }
