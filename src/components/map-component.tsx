@@ -73,6 +73,19 @@ const highlightStyle = new Style({
   })
 });
 
+const sortFeatures = (a: Feature<Geometry>, b: Feature<Geometry>) => {
+    const typeA = a.getGeometry()?.getType();
+    const typeB = b.getGeometry()?.getType();
+    if (typeA === 'MultiPolygon' && typeB !== 'MultiPolygon') {
+        return 1;
+    }
+    if (typeA !== 'MultiPolygon' && typeB === 'MultiPolygon') {
+        return -1;
+    }
+    return 0;
+};
+
+
 export default function MapComponent({ regionTemperatureData }: MapComponentProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
@@ -93,6 +106,7 @@ export default function MapComponent({ regionTemperatureData }: MapComponentProp
                 const acronym = feature.get('Acronym');
                 return regionTemperatureData.regionTemps[acronym] !== undefined;
             });
+            featuresWithData.sort(sortFeatures);
             source.addFeatures(featuresWithData);
         }
     }
@@ -230,6 +244,7 @@ export default function MapComponent({ regionTemperatureData }: MapComponentProp
                 const acronym = feature.get('Acronym');
                 return regionTempDataRef.current!.regionTemps[acronym] !== undefined;
             });
+            featuresWithData.sort(sortFeatures);
             source.addFeatures(featuresWithData);
         }
       })
