@@ -77,20 +77,27 @@ async function parseAndProcessCSV(filePath: string): Promise<{ [year: number]: R
   return processedData;
 }
 
+// Cache for the historical data to avoid re-fetching
+let cachedHistoricalData: { [year: number]: RegionTemperatures } | null = null;
+
 async function ensureScenarioDataLoaded(scenario: Scenario): Promise<void> {
   if (cachedScenarioData[scenario]) {
     return;
   }
 
-  const historicalData = await parseAndProcessCSV(scenarioFiles['Historical']);
+  if (!cachedHistoricalData) {
+    cachedHistoricalData = await parseAndProcessCSV(scenarioFiles['Historical']);
+  }
+  
   const futureData = await parseAndProcessCSV(scenarioFiles[scenario]);
 
   // Combine historical and future data into one object for the scenario
-  const combinedData = { ...historicalData, ...futureData };
+  const combinedData = { ...cachedHistoricalData, ...futureData };
   
   cachedScenarioData[scenario] = combinedData;
   cachedYears[scenario] = Object.keys(combinedData).map(Number).sort((a, b) => a - b);
 }
+
 
 export async function getCombinedDataForYear(scenario: Scenario, year: number): Promise<RegionYearlyTemperatureData> {
   await ensureScenarioDataLoaded(scenario);
@@ -108,4 +115,3 @@ export async function getCombinedYears(scenario: Scenario): Promise<number[]> {
   await ensureScenarioDataLoaded(scenario);
   return cachedYears[scenario] || [];
 }
-
