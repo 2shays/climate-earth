@@ -1,3 +1,4 @@
+
 'use client';
 
 import 'ol/ol.css';
@@ -282,3 +283,5 @@ export default function MapComponent({ regionTemperatureData }: MapComponentProp
     </>
   );
 }
+
+    
