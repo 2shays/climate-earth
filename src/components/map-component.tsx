@@ -12,6 +12,7 @@ import { TEMP_RANGE } from '@/lib/data';
 import { Style, Fill, Stroke } from 'ol/style';
 import Feature from 'ol/Feature';
 import type { Geometry } from 'ol/geom';
+import { getArea } from 'ol/sphere';
 import type { RegionYearlyTemperatureData } from '@/lib/region-data';
 import { Overlay } from 'ol';
 import type { MapBrowserEvent } from 'ol';
@@ -70,17 +71,16 @@ const highlightStyle = new Style({
   }),
   fill: new Fill({
       color: 'rgba(255, 255, 255, 0.2)'
-  })
+  }),
+  zIndex: Infinity // Ensure highlight is always on top
 });
 
 const sortFeatures = (a: Feature<Geometry>, b: Feature<Geometry>) => {
-    const typeA = a.getGeometry()?.getType();
-    const typeB = b.getGeometry()?.getType();
-    if (typeA === 'MultiPolygon' && typeB !== 'MultiPolygon') {
-        return 1;
-    }
-    if (typeA !== 'MultiPolygon' && typeB === 'MultiPolygon') {
-        return -1;
+    const geomA = a.getGeometry();
+    const geomB = b.getGeometry();
+    if (geomA && geomB) {
+        // Draw smaller features on top of larger ones
+        return getArea(geomB) - getArea(geomA);
     }
     return 0;
 };
@@ -131,9 +131,16 @@ export default function MapComponent({ regionTemperatureData }: MapComponentProp
         if (currentTempData && currentTempData.regionTemps[acronym] !== undefined) {
           const temp = currentTempData.regionTemps[acronym];
           const color = getColorFromTemp(temp);
+          const geom = feature.getGeometry();
+          let zIndex = 0;
+          if (geom) {
+            // Smaller area = higher z-index, but inverted because we want smaller on top
+             zIndex = Math.floor(1000 - Math.log(getArea(geom) || 1));
+          }
           return new Style({
             fill: new Fill({ color }),
             stroke: new Stroke({ color: 'rgba(255, 255, 255, 0.4)', width: 1 }),
+            zIndex,
           });
         }
         return defaultRegionStyle;
@@ -143,7 +150,6 @@ export default function MapComponent({ regionTemperatureData }: MapComponentProp
     highlightLayer.current = new VectorLayer({
         source: new VectorSource(),
         style: highlightStyle,
-        zIndex: 10 // Ensure highlight is on top
     });
 
     const tooltipOverlay = new Overlay({
@@ -186,8 +192,18 @@ export default function MapComponent({ regionTemperatureData }: MapComponentProp
         layerFilter: (l) => l === regionsLayer.current,
       });
     
-      // Prioritize MultiPolygon (land) over Polygon (ocean)
-      const topFeature = featuresAtPixel.find(f => f.getGeometry()?.getType() === 'MultiPolygon') || featuresAtPixel[0];
+      let topFeature: FeatureLike | undefined = undefined;
+      if (featuresAtPixel.length > 0) {
+        // Find the feature with the smallest area to prioritize it for hover
+        topFeature = featuresAtPixel.reduce((smallest, current) => {
+            const smallestGeom = smallest.getGeometry();
+            const currentGeom = current.getGeometry();
+            if (smallestGeom && currentGeom) {
+                return getArea(currentGeom) < getArea(smallestGeom) ? current : smallest;
+            }
+            return smallest;
+        });
+      }
 
       const highlightSource = highlightLayer.current?.getSource();
       if (!highlightSource) return;
