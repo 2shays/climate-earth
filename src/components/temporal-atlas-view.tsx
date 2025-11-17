@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useCallback, useTransition, useMemo } from 'react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { getCombinedYears, getCombinedDataForYear, Scenario } from '@/lib/region-data';
+import { getCombinedYears, getCombinedDataForYear, Scenario, RegionYearlyTemperatureData } from '@/lib/region-data';
 
 import MapComponent from '@/components/map-component';
 import YearSlider from '@/components/year-slider';
@@ -19,19 +19,45 @@ const SCENARIOS: { id: Scenario, name: string }[] = [
     { id: 'SSP5', name: 'SSP5: Fossil-Fueled Development' },
 ];
 
+const PRE_INDUSTRIAL_START_YEAR = 1850;
+const PRE_INDUSTRIAL_END_YEAR = 1900;
+
+const calculateGlobalMean = (data: RegionYearlyTemperatureData | undefined) => {
+    if (!data?.regionTemps) return null;
+    const temps = Object.values(data.regionTemps as Record<string, number>);
+    if (temps.length === 0) return null;
+    const sum = temps.reduce((acc, temp) => acc + temp, 0);
+    return sum / temps.length;
+}
+
 export default function TemporalAtlasView() {
   const [years, setYears] = useState<number[]>([]);
   const [selectedYear, setSelectedYear] = useState<number | undefined>();
   const [selectedScenario, setSelectedScenario] = useState<Scenario>('SSP2');
-  const [temperatureData, setTemperatureData] = useState<any>();
+  const [temperatureData, setTemperatureData] = useState<RegionYearlyTemperatureData | undefined>();
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [isDataLoading, startDataTransition] = useTransition();
+  const [preIndustrialAverage, setPreIndustrialAverage] = useState<number | null>(null);
 
   const loadInitialData = async (scenario: Scenario) => {
     setIsInitialLoading(true);
     try {
       const availableYears = await getCombinedYears(scenario);
       setYears(availableYears);
+
+      // Calculate pre-industrial average
+      const preIndustrialYears = availableYears.filter(y => y >= PRE_INDUSTRIAL_START_YEAR && y <= PRE_INDUSTRIAL_END_YEAR);
+      if (preIndustrialYears.length > 0) {
+        const preIndustrialData = await Promise.all(
+          preIndustrialYears.map(year => getCombinedDataForYear(scenario, year))
+        );
+        const preIndustrialMeans = preIndustrialData.map(calculateGlobalMean).filter(m => m !== null) as number[];
+        if (preIndustrialMeans.length > 0) {
+          const totalMean = preIndustrialMeans.reduce((sum, mean) => sum + mean, 0);
+          setPreIndustrialAverage(totalMean / preIndustrialMeans.length);
+        }
+      }
+
       if (availableYears.length > 0) {
         const defaultYear = 2025;
         const initialYear = availableYears.includes(defaultYear)
@@ -55,6 +81,7 @@ export default function TemporalAtlasView() {
 
   useEffect(() => {
     loadInitialData(selectedScenario);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedScenario]);
 
   const handleYearChange = useCallback((year: number) => {
@@ -74,16 +101,13 @@ export default function TemporalAtlasView() {
     setSelectedScenario(scenarioId as Scenario);
   };
 
-  const globalAverageTemp = useMemo(() => {
-    if (!temperatureData?.regionTemps) return null;
-
-    const temps = Object.values(temperatureData.regionTemps as Record<string, number>);
-    if (temps.length === 0) return null;
-
-    const sum = temps.reduce((acc, temp) => acc + temp, 0);
-    return sum / temps.length;
-  }, [temperatureData]);
+  const globalAverageTemp = useMemo(() => calculateGlobalMean(temperatureData), [temperatureData]);
   
+  const temperatureAnomaly = useMemo(() => {
+    if (globalAverageTemp === null || preIndustrialAverage === null) return null;
+    return globalAverageTemp - preIndustrialAverage;
+  }, [globalAverageTemp, preIndustrialAverage]);
+
   return (
     <div className="relative h-[100svh] w-full overflow-hidden bg-background">
       <div className={`absolute inset-0 z-10 bg-background/50 transition-opacity duration-300 ${isDataLoading ? 'opacity-100' : 'opacity-0'} pointer-events-none`} />
@@ -106,14 +130,26 @@ export default function TemporalAtlasView() {
                     </SelectContent>
                 </Select>
             </CardHeader>
-            {globalAverageTemp !== null && (
+            {(globalAverageTemp !== null || temperatureAnomaly !== null) && (
                 <>
                     <Separator />
-                    <CardContent className="p-4">
-                        <div className="text-xs text-muted-foreground">Global Mean Temperature</div>
-                        <div className="text-2xl font-bold text-card-foreground">
-                            {globalAverageTemp.toFixed(2)}°C
-                        </div>
+                    <CardContent className="p-4 grid grid-cols-2 gap-4">
+                        {globalAverageTemp !== null && (
+                            <div>
+                                <div className="text-xs text-muted-foreground">Global Mean Temp.</div>
+                                <div className="text-2xl font-bold text-card-foreground">
+                                    {globalAverageTemp.toFixed(2)}°C
+                                </div>
+                            </div>
+                        )}
+                         {temperatureAnomaly !== null && (
+                            <div>
+                                <div className="text-xs text-muted-foreground">vs. Pre-industrial</div>
+                                <div className={`text-2xl font-bold ${temperatureAnomaly > 0 ? 'text-accent' : 'text-primary'}`}>
+                                    {temperatureAnomaly > 0 ? '+' : ''}{temperatureAnomaly.toFixed(2)}°C
+                                </div>
+                            </div>
+                        )}
                     </CardContent>
                 </>
             )}
