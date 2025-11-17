@@ -15,6 +15,8 @@ import type { RegionYearlyTemperatureData } from '@/lib/region-data';
 import { Overlay } from 'ol';
 import type { MapBrowserEvent } from 'ol';
 import type { FeatureLike } from 'ol/Feature';
+import TileLayer from 'ol/layer/Tile';
+import OSM from 'ol/source/OSM';
 
 type MapComponentProps = {
   regionTemperatureData: RegionYearlyTemperatureData | undefined;
@@ -22,18 +24,18 @@ type MapComponentProps = {
 
 // Helper function to get color from temperature
 function getColorFromTemp(temp: number) {
+  const alpha = 0.25; // Lower opacity as requested
   const normalizedTemp = (temp - TEMP_RANGE.min) / (TEMP_RANGE.max - TEMP_RANGE.min);
-  const alpha = 0.25;
 
   if (normalizedTemp < 0.25) {
-    const r = 102 + (normalizedTemp / 0.25) * (127 - 102);
+    const r = 102;
     const g = 178 + (normalizedTemp / 0.25) * (255 - 178);
-    const b = 255 - (normalizedTemp / 0.25) * (255 - 212);
+    const b = 255;
     return `rgba(${r}, ${g}, ${b}, ${alpha})`;
   } else if (normalizedTemp < 0.5) {
-    const r = 127 + ((normalizedTemp - 0.25) / 0.25) * (255 - 127);
+    const r = 102 + ((normalizedTemp - 0.25) / 0.25) * (255 - 102);
     const g = 255;
-    const b = 212 - ((normalizedTemp - 0.25) / 0.25) * 212;
+    const b = 255 - ((normalizedTemp - 0.25) / 0.25) * 255;
     return `rgba(${r}, ${g}, ${b}, ${alpha})`;
   } else if (normalizedTemp < 0.75) {
     const r = 255;
@@ -42,15 +44,15 @@ function getColorFromTemp(temp: number) {
     return `rgba(${r}, ${g}, ${b}, ${alpha})`;
   } else {
     const r = 255;
-    const g = 165 - ((normalizedTemp - 0.75) / 0.25) * (165 - 127);
-    const b = 0 + ((normalizedTemp - 0.75) / 0.25) * (80 - 0);
+    const g = 165 - ((normalizedTemp - 0.75) / 0.25) * 165;
+    const b = 0;
     return `rgba(${r}, ${g}, ${b}, ${alpha})`;
   }
 }
 
 const defaultRegionStyle = new Style({
   fill: new Fill({
-    color: 'rgba(255, 255, 255, 0.0)',
+    color: 'rgba(255, 255, 255, 0.0)', // Transparent fill
   }),
   stroke: new Stroke({
     color: 'rgba(255, 255, 255, 0.4)',
@@ -85,6 +87,11 @@ export default function MapComponent({ regionTemperatureData }: MapComponentProp
   useEffect(() => {
     if (!mapRef.current || !tooltipRef.current || mapInstance.current) return;
 
+    const mapBackgroundLayer = new TileLayer({
+        source: new OSM(),
+        opacity: 0.3,
+    });
+      
     const regionsSource = new VectorSource();
 
     regionsLayer.current = new VectorLayer({
@@ -118,13 +125,13 @@ export default function MapComponent({ regionTemperatureData }: MapComponentProp
     mapInstance.current = new Map({
       target: mapRef.current,
       layers: [
+        mapBackgroundLayer,
         regionsLayer.current,
         highlightLayer.current
       ],
       view: new View({
         center: [0, 0],
-        zoom: 0,
-        projection: undefined, // Use pixel coordinates
+        zoom: 2,
       }),
       overlays: [tooltipOverlay],
     });
@@ -179,10 +186,12 @@ export default function MapComponent({ regionTemperatureData }: MapComponentProp
         return response.json();
       })
       .then(data => {
-        const format = new GeoJSON();
+        const format = new GeoJSON({
+            featureProjection: 'EPSG:3857' // Project features to the map's projection
+        });
         const features = format.readFeatures(data);
 
-        // Sort features to draw complex ones on top
+        // Sort features to draw complex ones on top to solve hover issue
         features.sort((a, b) => {
             const geomA = a.getGeometry()?.getType();
             const geomB = b.getGeometry()?.getType();
@@ -192,13 +201,6 @@ export default function MapComponent({ regionTemperatureData }: MapComponentProp
         });
 
         regionsSource.addFeatures(features);
-
-        // Adjust view to fit the features
-        const extent = regionsSource.getExtent();
-        mapInstance.current?.getView().fit(extent, {
-          padding: [10, 10, 10, 10],
-          size: mapInstance.current.getSize(),
-        });
       })
       .catch(error => {
         console.error(error);
