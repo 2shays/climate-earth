@@ -28,10 +28,13 @@ type MapComponentProps = {
 };
 
 export default function MapComponent({ temperatureData }: MapComponentProps) {
+  const googleMapsApiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+
   const { isLoaded } = useJsApiLoader({
     id: 'google-map-script',
-    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "",
-    libraries: ['visualization']
+    googleMapsApiKey: googleMapsApiKey || "",
+    libraries: ['visualization'],
+    preventGoogleFontsLoading: true,
   });
 
   const heatmapData = useMemo(() => {
@@ -41,6 +44,18 @@ export default function MapComponent({ temperatureData }: MapComponentProps) {
       weight: (point.temp - TEMP_RANGE.min) / (TEMP_RANGE.max - TEMP_RANGE.min)
     }));
   }, [temperatureData, isLoaded]);
+
+  if (!googleMapsApiKey) {
+    return (
+        <div className="h-full w-full bg-gray-200 flex items-center justify-center">
+            <div className="text-center text-gray-600 p-4">
+                <h2 className="text-lg font-bold mb-2">Google Maps API Key Missing</h2>
+                <p>Please add your Google Maps API key to the <code>.env</code> file as <code>NEXT_PUBLIC_GOOGLE_MAPS_API_KEY</code>.</p>
+                <p className="mt-2">After adding the key, please restart the development server.</p>
+            </div>
+        </div>
+    );
+  }
 
   if (!isLoaded) {
     return <Skeleton className="h-full w-full" />;
