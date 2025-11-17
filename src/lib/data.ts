@@ -1,3 +1,5 @@
+import mockData from './mock-temperature-data.json';
+
 export type TemperaturePoint = {
   lat: number;
   lng: number;
@@ -33,20 +35,7 @@ function generateTemperatureData(year: number, numPoints: number): TemperaturePo
   return data;
 }
 
-export const mockTemperatureData: YearlyTemperatureData[] = [
-  {
-    year: 2023,
-    data: generateTemperatureData(2023, 150),
-  },
-  {
-    year: 2024,
-    data: generateTemperatureData(2024, 150),
-  },
-  {
-    year: 2025,
-    data: generateTemperatureData(2025, 150),
-  },
-];
+export const mockTemperatureData: YearlyTemperatureData[] = mockData;
 
 export const MOCK_YEARS = mockTemperatureData.map(d => d.year);
 export const TEMP_RANGE = { min: -30, max: 40 };
