@@ -226,7 +226,7 @@ export default function TemporalAtlasView() {
                         variant="ghost" 
                         size="icon" 
                         onClick={handleReset}
-                        disabled={isLoading || !years.includes(CURRENT_YEAR)}
+                        disabled={isDataLoading || !years.includes(CURRENT_YEAR)}
                         className="h-10 w-10 shrink-0"
                     >
                         <RotateCcw className="h-5 w-5" />
