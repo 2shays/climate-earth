@@ -53,10 +53,11 @@ function YearSlider({ years, value, onValueChange, onValueCommit, isLoading, isP
         size="icon" 
         onClick={onTogglePlay} 
         disabled={isLoading || years.length === 0}
-        className="relative h-10 w-10 shrink-0"
+        className="relative h-10 w-10 shrink-0 group"
+        data-playing={isPlaying}
       >
-        <Play className={`h-6 w-6 absolute transition-opacity ${isPlaying ? 'opacity-0' : 'opacity-100'}`} />
-        <Pause className={`h-6 w-6 absolute transition-opacity ${isPlaying ? 'opacity-100' : 'opacity-0'}`} />
+        <Play className="h-6 w-6 absolute transition-opacity opacity-100 group-data-[playing=true]:opacity-0" />
+        <Pause className="h-6 w-6 absolute transition-opacity opacity-0 group-data-[playing=true]:opacity-100" />
         <span className="sr-only">{isPlaying ? "Pause" : "Play"}</span>
       </Button>
       <div className="flex-grow relative pt-4">
