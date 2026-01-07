@@ -2,7 +2,7 @@
 "use client";
 
 import { Slider } from "@/components/ui/slider";
-import { useMemo } from "react";
+import { useMemo, memo } from "react";
 import { Button } from "./ui/button";
 import { Pause, Play } from "lucide-react";
 
@@ -18,7 +18,7 @@ type YearSliderProps = {
 
 const PRE_INDUSTRIAL_END_YEAR = 1900;
 
-export default function YearSlider({ years, value, onValueChange, onValueCommit, isLoading, isPlaying, onTogglePlay }: YearSliderProps) {
+function YearSlider({ years, value, onValueChange, onValueCommit, isLoading, isPlaying, onTogglePlay }: YearSliderProps) {
   const valueIndex = useMemo(() => {
     if (!years || years.length === 0 || typeof value !== 'number' || isNaN(value)) return 0;
     const index = years.indexOf(value);
@@ -98,3 +98,5 @@ export default function YearSlider({ years, value, onValueChange, onValueCommit,
     </div>
   );
 }
+
+export default memo(YearSlider);
