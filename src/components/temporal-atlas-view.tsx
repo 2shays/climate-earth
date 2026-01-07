@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader } from '@/components/ui/
 import { getCombinedYears, getCombinedDataForYear, Scenario, RegionYearlyTemperatureData } from '@/lib/region-data';
 import { Button } from '@/components/ui/button';
 import { PanelRightOpen } from 'lucide-react';
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import MapComponent from '@/components/map-component';
 import YearSlider from '@/components/year-slider';
 import TemperatureLegend from '@/components/temperature-legend';
@@ -141,8 +141,14 @@ export default function TemporalAtlasView() {
                     <span className="sr-only">Toggle Controls</span>
                 </Button>
             </SheetTrigger>
-            <SheetContent className="w-full max-w-xs bg-card/80 backdrop-blur-sm border-l-0">
-                <Card className="w-full bg-transparent shadow-none border-0">
+            <SheetContent className="w-full max-w-xs bg-card/80 backdrop-blur-sm border-l-0 p-0">
+                <SheetHeader className="sr-only">
+                  <SheetTitle>Scenario Controls</SheetTitle>
+                  <SheetDescription>
+                    Select a climate scenario to view its temperature projections on the map.
+                  </SheetDescription>
+                </SheetHeader>
+                <Card className="w-full h-full bg-transparent shadow-none border-0">
                     <CardHeader className="p-4">
                         <Label className="text-xs font-normal text-muted-foreground">Shared Socioeconomic Pathways</Label>
                         <Select value={selectedScenario} onValueChange={handleScenarioChange}>
