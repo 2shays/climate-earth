@@ -2,7 +2,7 @@
 "use client";
 
 import { Slider } from "@/components/ui/slider";
-import { useMemo, memo } from "react";
+import { useMemo } from "react";
 import { Button } from "./ui/button";
 import { Pause, Play } from "lucide-react";
 
@@ -17,9 +17,6 @@ type YearSliderProps = {
 };
 
 const PRE_INDUSTRIAL_END_YEAR = 1900;
-
-const PlayIcon = <Play className="h-6 w-6" />;
-const PauseIcon = <Pause className="h-6 w-6" />;
 
 export default function YearSlider({ years, value, onValueChange, onValueCommit, isLoading, isPlaying, onTogglePlay }: YearSliderProps) {
   const valueIndex = useMemo(() => {
@@ -56,9 +53,10 @@ export default function YearSlider({ years, value, onValueChange, onValueCommit,
         size="icon" 
         onClick={onTogglePlay} 
         disabled={isLoading || years.length === 0}
-        className="relative"
+        className="relative h-10 w-10 shrink-0"
       >
-        {isPlaying ? PauseIcon : PlayIcon}
+        <Play className={`h-6 w-6 absolute transition-opacity ${isPlaying ? 'opacity-0' : 'opacity-100'}`} />
+        <Pause className={`h-6 w-6 absolute transition-opacity ${isPlaying ? 'opacity-100' : 'opacity-0'}`} />
         <span className="sr-only">{isPlaying ? "Pause" : "Play"}</span>
       </Button>
       <div className="flex-grow relative pt-4">

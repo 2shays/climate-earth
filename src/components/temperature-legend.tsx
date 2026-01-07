@@ -7,7 +7,7 @@ export default function TemperatureLegend() {
       <div
         className="h-4 w-full md:w-48 rounded-full"
         style={{
-          background: 'linear-gradient(to right, #66B2FF, #7FFFD4, #FFFF00, #FFA500, #FF7F50)',
+          background: 'linear-gradient(to right, #66B2FF, #7FFFD4, #FFFF00, #FF0000)',
         }}
         aria-hidden="true"
       />

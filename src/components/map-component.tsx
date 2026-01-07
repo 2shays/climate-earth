@@ -32,21 +32,17 @@ function getColorFromTemp(temp: number) {
 
   let r, g, b;
 
-  if (normalizedTemp < 0.25) { // Blue to Cyan
+  if (normalizedTemp < 0.5) { // Blue to Cyan
       r = 102;
-      g = 178 + (normalizedTemp / 0.25) * (255 - 178);
+      g = 178 + (normalizedTemp / 0.5) * (255 - 178);
       b = 255;
-  } else if (normalizedTemp < 0.5) { // Cyan to Green/Yellow
-      r = 102 + ((normalizedTemp - 0.25) / 0.25) * (255 - 102);
+  } else if (normalizedTemp < 0.75) { // Cyan to Yellow
+      r = 102 + ((normalizedTemp - 0.5) / 0.25) * (255 - 102);
       g = 255;
-      b = 255 - ((normalizedTemp - 0.25) / 0.25) * 255;
-  } else if (normalizedTemp < 0.75) { // Yellow to Orange
+      b = 255 - ((normalizedTemp - 0.5) / 0.25) * 255;
+  } else { // Yellow to Red
       r = 255;
-      g = 255 - ((normalizedTemp - 0.5) / 0.25) * (255 - 165);
-      b = 0;
-  } else { // Orange to Red
-      r = 255;
-      g = 165 - ((normalizedTemp - 0.75) / 0.25) * 165;
+      g = 255 - ((normalizedTemp - 0.75) / 0.25) * 255;
       b = 0;
   }
 

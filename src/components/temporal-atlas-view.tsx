@@ -4,7 +4,9 @@
 import { useState, useEffect, useCallback, useTransition, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader } from '@/components/ui/card';
 import { getCombinedYears, getCombinedDataForYear, Scenario, RegionYearlyTemperatureData } from '@/lib/region-data';
-
+import { Button } from '@/components/ui/button';
+import { PanelRightOpen } from 'lucide-react';
+import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import MapComponent from '@/components/map-component';
 import YearSlider from '@/components/year-slider';
 import TemperatureLegend from '@/components/temperature-legend';
@@ -132,62 +134,70 @@ export default function TemporalAtlasView() {
       <MapComponent regionTemperatureData={temperatureData} />
 
       <header className="absolute top-0 left-0 w-full p-4 md:p-6 z-20 flex justify-end items-start pointer-events-none">
-        <div className="w-full max-w-xs flex flex-col gap-2 items-end">
-            <Card className="w-full bg-card/80 backdrop-blur-sm pointer-events-auto">
-                <CardHeader className="p-4">
-                    <Label className="text-xs font-normal text-muted-foreground">Shared Socioeconomic Pathways</Label>
-                    <Select value={selectedScenario} onValueChange={handleScenarioChange}>
-                        <SelectTrigger className="mt-1">
-                            <SelectValue placeholder="Select a scenario" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {SCENARIOS.map((scenario) => (
-                                <SelectItem key={scenario.id} value={scenario.id}>
-                                    {scenario.name}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                </CardHeader>
-                <CardContent className="p-4 pt-0">
-                  {selectedScenarioData && (
-                    <Accordion type="single" collapsible className="w-full">
-                      <AccordionItem value="item-1" className="border-b-0">
-                        <AccordionTrigger className="text-xs hover:no-underline py-0 -my-2">Read more</AccordionTrigger>
-                        <AccordionContent className="pt-4">
-                          <CardDescription className="text-xs">
-                            {selectedScenarioData.description}
-                          </CardDescription>
-                        </AccordionContent>
-                      </AccordionItem>
-                    </Accordion>
-                  )}
-                </CardContent>
-                {(globalAverageTemp !== null || temperatureAnomaly !== null) && (
-                    <>
-                        <Separator />
-                        <CardContent className="p-4 grid grid-cols-2 gap-4">
-                            {globalAverageTemp !== null && (
-                                <div>
-                                    <div className="text-xs text-muted-foreground">Global Mean Temp.</div>
-                                    <div className="text-2xl font-bold text-card-foreground">
-                                        {globalAverageTemp.toFixed(2)}°C
+        <Sheet>
+            <SheetTrigger asChild>
+                <Button variant="outline" size="icon" className="bg-card/80 backdrop-blur-sm pointer-events-auto">
+                    <PanelRightOpen />
+                    <span className="sr-only">Toggle Controls</span>
+                </Button>
+            </SheetTrigger>
+            <SheetContent className="w-full max-w-xs bg-card/80 backdrop-blur-sm border-l-0">
+                <Card className="w-full bg-transparent shadow-none border-0">
+                    <CardHeader className="p-4">
+                        <Label className="text-xs font-normal text-muted-foreground">Shared Socioeconomic Pathways</Label>
+                        <Select value={selectedScenario} onValueChange={handleScenarioChange}>
+                            <SelectTrigger className="mt-1">
+                                <SelectValue placeholder="Select a scenario" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {SCENARIOS.map((scenario) => (
+                                    <SelectItem key={scenario.id} value={scenario.id}>
+                                        {scenario.name}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </CardHeader>
+                    <CardContent className="p-4 pt-0">
+                      {selectedScenarioData && (
+                        <Accordion type="single" collapsible className="w-full">
+                          <AccordionItem value="item-1" className="border-b-0">
+                            <AccordionTrigger className="text-xs hover:no-underline py-0 -my-2">Read more</AccordionTrigger>
+                            <AccordionContent className="pt-4">
+                              <CardDescription className="text-xs">
+                                {selectedScenarioData.description}
+                              </CardDescription>
+                            </AccordionContent>
+                          </AccordionItem>
+                        </Accordion>
+                      )}
+                    </CardContent>
+                    {(globalAverageTemp !== null || temperatureAnomaly !== null) && (
+                        <>
+                            <Separator />
+                            <CardContent className="p-4 grid grid-cols-2 gap-4">
+                                {globalAverageTemp !== null && (
+                                    <div>
+                                        <div className="text-xs text-muted-foreground">Global Mean Temp.</div>
+                                        <div className="text-2xl font-bold text-card-foreground">
+                                            {globalAverageTemp.toFixed(2)}°C
+                                        </div>
                                     </div>
-                                </div>
-                            )}
-                            {temperatureAnomaly !== null && (
-                                <div>
-                                    <div className="text-xs text-muted-foreground">vs. Pre-industrial</div>
-                                    <div className={`text-2xl font-bold ${temperatureAnomaly > 0 ? 'text-accent' : 'text-primary'}`}>
-                                        {temperatureAnomaly > 0 ? '+' : ''}{temperatureAnomaly.toFixed(2)}°C
+                                )}
+                                {temperatureAnomaly !== null && (
+                                    <div>
+                                        <div className="text-xs text-muted-foreground">vs. Pre-industrial</div>
+                                        <div className={`text-2xl font-bold ${temperatureAnomaly > 0 ? 'text-accent' : 'text-primary'}`}>
+                                            {temperatureAnomaly > 0 ? '+' : ''}{temperatureAnomaly.toFixed(2)}°C
+                                        </div>
                                     </div>
-                                </div>
-                            )}
-                        </CardContent>
-                    </>
-                )}
-            </Card>
-        </div>
+                                )}
+                            </CardContent>
+                        </>
+                    )}
+                </Card>
+            </SheetContent>
+        </Sheet>
       </header>
 
       <footer className="absolute bottom-0 left-0 w-full p-4 z-20">
