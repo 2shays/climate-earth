@@ -59,9 +59,8 @@ export default function TemporalAtlasView() {
       }
 
       if (availableYears.length > 0) {
-        const defaultYear = 2025;
-        const initialYear = availableYears.includes(defaultYear)
-          ? defaultYear
+        const initialYear = availableYears.includes(CURRENT_YEAR)
+          ? CURRENT_YEAR
           : availableYears[Math.floor(availableYears.length / 2)];
         
         setSelectedYear(initialYear);
