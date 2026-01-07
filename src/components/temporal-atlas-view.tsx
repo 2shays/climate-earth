@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback, useTransition, useMemo } from 'react'
 import { Card, CardContent, CardDescription, CardHeader } from '@/components/ui/card';
 import { getCombinedYears, getCombinedDataForYear, Scenario, RegionYearlyTemperatureData } from '@/lib/region-data';
 import { Button } from '@/components/ui/button';
-import { PanelRightOpen } from 'lucide-react';
+import { PanelRightOpen, RotateCcw } from 'lucide-react';
 import MapComponent from '@/components/map-component';
 import YearSlider from '@/components/year-slider';
 import TemperatureLegend from '@/components/temperature-legend';
@@ -17,6 +17,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './
 
 const PRE_INDUSTRIAL_START_YEAR = 1850;
 const PRE_INDUSTRIAL_END_YEAR = 1900;
+const CURRENT_YEAR = new Date().getFullYear();
 
 export const calculateGlobalMean = (data: RegionYearlyTemperatureData | undefined) => {
     if (!data?.regionTemps) return null;
@@ -116,6 +117,12 @@ export default function TemporalAtlasView() {
   const togglePlay = () => {
     setIsPlaying(!isPlaying);
   };
+  
+  const handleReset = () => {
+    if (years.includes(CURRENT_YEAR)) {
+        handleYearChange(CURRENT_YEAR);
+    }
+  };
 
   const globalAverageTemp = useMemo(() => calculateGlobalMean(temperatureData), [temperatureData]);
   
@@ -197,7 +204,7 @@ export default function TemporalAtlasView() {
       </header>
 
       <footer className="absolute bottom-0 left-0 w-full p-4 z-20">
-        <Card className="max-w-3xl mx-auto bg-card/80 backdrop-blur-sm">
+        <Card className="max-w-4xl mx-auto bg-card/80 backdrop-blur-sm">
           <CardContent className="p-4 flex flex-col md:flex-row items-center gap-6">
             {isInitialLoading || !selectedYear || years.length === 0 ? (
               <div className="w-full h-10 flex items-center justify-center text-muted-foreground">
@@ -214,7 +221,19 @@ export default function TemporalAtlasView() {
                   isPlaying={isPlaying}
                   onTogglePlay={togglePlay}
                 />
-                <TemperatureLegend />
+                <div className="flex items-center gap-2">
+                    <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        onClick={handleReset}
+                        disabled={isLoading || !years.includes(CURRENT_YEAR)}
+                        className="h-10 w-10 shrink-0"
+                    >
+                        <RotateCcw className="h-5 w-5" />
+                        <span className="sr-only">Reset to current year</span>
+                    </Button>
+                    <TemperatureLegend />
+                </div>
               </>
             )}
           </CardContent>
