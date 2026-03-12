@@ -8,7 +8,7 @@ import View from 'ol/View';
 import VectorLayer from 'ol/layer/Vector';
 import VectorSource from 'ol/source/Vector';
 import GeoJSON from 'ol/format/GeoJSON';
-import { TEMP_RANGE } from '@/lib/data';
+import { TEMP_RANGE, MAP_OVERLAY_OPACITY } from '@/lib/data';
 import { Style, Fill, Stroke } from 'ol/style';
 import Feature from 'ol/Feature';
 import type { Geometry } from 'ol/geom';
@@ -27,7 +27,6 @@ type MapComponentProps = {
 
 // Helper function to get color from temperature
 function getColorFromTemp(temp: number) {
-  const alpha = 0.25;
   const normalizedTemp = Math.max(0, Math.min(1, (temp - TEMP_RANGE.min) / (TEMP_RANGE.max - TEMP_RANGE.min)));
 
   let r, g, b;
@@ -46,7 +45,7 @@ function getColorFromTemp(temp: number) {
       b = 0;
   }
 
-  return `rgba(${Math.round(r)}, ${Math.round(g)}, ${Math.round(b)}, ${alpha})`;
+  return `rgba(${Math.round(r)}, ${Math.round(g)}, ${Math.round(b)}, ${MAP_OVERLAY_OPACITY})`;
 }
 
 
@@ -71,16 +70,6 @@ const highlightStyle = new Style({
   zIndex: Infinity // Ensure highlight is always on top
 });
 
-const sortFeatures = (a: Feature<Geometry>, b: Feature<Geometry>) => {
-    const geomA = a.getGeometry();
-    const geomB = b.getGeometry();
-    if (geomA && geomB) {
-        // Draw smaller features on top of larger ones
-        return getArea(geomB) - getArea(geomA);
-    }
-    return 0;
-};
-
 
 export default function MapComponent({ regionTemperatureData }: MapComponentProps) {
   const mapRef = useRef<HTMLDivElement>(null);
@@ -102,7 +91,6 @@ export default function MapComponent({ regionTemperatureData }: MapComponentProp
                 const acronym = feature.get('Acronym');
                 return regionTemperatureData.regionTemps[acronym] !== undefined;
             });
-            featuresWithData.sort(sortFeatures);
             source.addFeatures(featuresWithData);
         }
     }
@@ -130,7 +118,7 @@ export default function MapComponent({ regionTemperatureData }: MapComponentProp
           const geom = feature.getGeometry();
           let zIndex = 0;
           if (geom) {
-            // Smaller area = higher z-index, but inverted because we want smaller on top
+             // Smaller area = higher z-index to ensure smaller polygons are drawn on top
              zIndex = Math.floor(1000 - Math.log(getArea(geom) || 1));
           }
           return new Style({
@@ -191,6 +179,7 @@ export default function MapComponent({ regionTemperatureData }: MapComponentProp
       let topFeature: FeatureLike | undefined = undefined;
       if (featuresAtPixel.length > 0) {
         // Find the feature with the smallest area to prioritize it for hover
+        // This solves the issue of large polygons obscuring smaller ones
         topFeature = featuresAtPixel.reduce((smallest, current) => {
             const smallestGeom = smallest.getGeometry();
             const currentGeom = current.getGeometry();
@@ -238,7 +227,7 @@ export default function MapComponent({ regionTemperatureData }: MapComponentProp
     fetch('/data/IPCC-WGI-reference-regions-v4.geojson')
       .then(response => {
         if (!response.ok) {
-          throw new Error("Could not fetch or parse the GeoJSON file. Please ensure the file 'IPCC-WGI-reference-regions-v4.geojson' exists in the 'public/data/' directory.");
+          throw new Error("Could not fetch or parse the GeoJSON file.");
         }
         return response.json();
       })
@@ -249,14 +238,13 @@ export default function MapComponent({ regionTemperatureData }: MapComponentProp
         });
         const features = format.readFeatures(data);
         allFeaturesRef.current = features;
-        // Initial load with data if available
+        
         const source = regionsLayer.current?.getSource();
         if(source && regionTempDataRef.current) {
             const featuresWithData = allFeaturesRef.current.filter(feature => {
                 const acronym = feature.get('Acronym');
                 return regionTempDataRef.current!.regionTemps[acronym] !== undefined;
             });
-            featuresWithData.sort(sortFeatures);
             source.addFeatures(featuresWithData);
         }
       })
@@ -277,7 +265,7 @@ export default function MapComponent({ regionTemperatureData }: MapComponentProp
       <div ref={mapRef} className="h-full w-full" />
       <div 
         ref={tooltipRef} 
-        className="tooltip-container bg-card/80 backdrop-blur-sm text-card-foreground p-2 rounded-md shadow-lg text-sm whitespace-nowrap"
+        className="tooltip-container bg-card/80 backdrop-blur-sm text-card-foreground p-2 rounded-md shadow-lg text-sm whitespace-nowrap border border-border"
         style={{ position: 'absolute', display: 'block', pointerEvents: 'none' }}
       ></div>
     </>
