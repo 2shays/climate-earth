@@ -11,4 +11,4 @@ export type YearlyTemperatureData = {
 };
 
 export const TEMP_RANGE = { min: -20, max: 35 };
-export const MAP_OVERLAY_OPACITY = 0.25;
+export const MAP_OVERLAY_OPACITY = 0.45;
