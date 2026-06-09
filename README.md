@@ -17,14 +17,14 @@ While inspired by the same data used by the Intergovernmental Panel on Climate C
 - **Accessible Design:** Prioritizes a clean, single-view interactive experience over complex scientific statistical controls.
 - **Contextual Anomalies:** Highlights the "vs. Pre-industrial" metric to help users understand the scale of current and future warming in a relatable context.
 
-## Public Access & Deployment
-This application is deployed using **Firebase App Hosting**.
+## Public Preview Access
+This application is currently shared via a **Public Preview URL** from Firebase Studio.
 
 ### How it Works
-- **Link Persistence:** The public URL is permanent. It does not expire and will remain active as long as the App Hosting backend is maintained.
-- **Data Serving:** All climate datasets (CSV) and map geometries (GeoJSON) are served as static assets from the `public` directory, ensuring they are accessible to all users of the dashboard.
-- **Automatic Scaling:** The hosting environment automatically manages server instances to handle incoming traffic based on the configuration in `apphosting.yaml`.
+- **Live Updates:** This link provides a real-time view of the development environment. Any changes made to the code are reflected immediately for anyone viewing the link.
+- **Persistence:** The link remains active as long as the development workstation is running. It is intended for testing, feedback, and demonstration purposes.
+- **Data Serving:** Climate datasets (CSV) and map geometries (GeoJSON) are served directly from the development server, ensuring the map is fully interactive for all viewers.
 
-### Limitations
-- **Client-Side Rendering:** The map renders complex geometries and data points directly in the user's browser. Older mobile devices or browsers may experience performance lag.
-- **Usage Quotas:** High volumes of traffic are subject to Firebase and Google Cloud platform quotas. For small to medium audiences, the standard limits are typically sufficient.
+### Technical Limitations
+- **Development Build:** The preview runs in development mode, which may not be as highly optimized as a final production deployment.
+- **Hardware Requirements:** The map renders complex geometries in the browser. A stable internet connection and a modern browser are recommended for the best experience.
