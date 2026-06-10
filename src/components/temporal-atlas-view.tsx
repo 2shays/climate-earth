@@ -12,6 +12,7 @@ import TemperatureLegend from '@/components/temperature-legend';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Label } from './ui/label';
 import { Separator } from './ui/separator';
+import { cn } from '@/lib/utils';
 import { SCENARIOS } from '@/lib/scenarios';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui/accordion';
 
@@ -135,109 +136,121 @@ export default function TemporalAtlasView() {
   }, [selectedScenario]);
   
   return (
-    <div className="relative h-[100svh] w-full overflow-hidden bg-background">
+    <div className="flex h-[100svh] overflow-hidden bg-background">
       <div className={`absolute inset-0 z-10 bg-background/50 transition-opacity duration-300 ${isDataLoading ? 'opacity-100' : 'opacity-0'} pointer-events-none`} />
-      <MapComponent regionTemperatureData={temperatureData} />
 
-      <header className="absolute top-0 right-0 w-full p-4 md:p-6 z-20 flex justify-end items-start pointer-events-none">
-        <div className="flex flex-col items-end gap-2 pointer-events-auto">
-            <Button variant="outline" size="icon" className="bg-card/80 backdrop-blur-sm" onClick={() => setIsPanelOpen(!isPanelOpen)}>
-                <PanelRightOpen />
-                <span className="sr-only">Toggle Controls</span>
-            </Button>
-            <Card className={`w-full max-w-xs bg-card/80 backdrop-blur-sm transition-transform duration-300 ease-in-out ${isPanelOpen ? 'translate-x-0' : 'translate-x-[calc(100%+2rem)]'}`}>
-                <CardHeader className="p-4">
-                    <Label className="text-xs font-normal text-muted-foreground">Shared Socioeconomic Pathways</Label>
-                    <Select value={selectedScenario} onValueChange={handleScenarioChange}>
-                        <SelectTrigger className="mt-1">
-                            <SelectValue placeholder="Select a scenario" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {SCENARIOS.map((scenario) => (
-                                <SelectItem key={scenario.id} value={scenario.id}>
-                                    {scenario.name}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                </CardHeader>
-                <CardContent className="p-4 pt-0">
-                  {selectedScenarioData && (
-                    <Accordion type="single" collapsible className="w-full">
-                      <AccordionItem value="item-1" className="border-b-0">
-                        <AccordionTrigger className="text-xs hover:no-underline py-0 -my-2">Read more</AccordionTrigger>
-                        <AccordionContent className="pt-4">
-                          <CardDescription className="text-xs">
-                            {selectedScenarioData.description}
-                          </CardDescription>
-                        </AccordionContent>
-                      </AccordionItem>
-                    </Accordion>
-                  )}
-                </CardContent>
-                {(globalAverageTemp !== null || temperatureAnomaly !== null) && (
-                    <>
-                        <Separator />
-                        <CardContent className="p-4 grid grid-cols-2 gap-4">
-                            {globalAverageTemp !== null && (
-                                <div>
-                                    <div className="text-xs text-muted-foreground">Global Mean Temp.</div>
-                                    <div className="text-2xl font-bold text-card-foreground">
-                                        {globalAverageTemp.toFixed(2)}°C
-                                    </div>
-                                </div>
-                            )}
-                            {temperatureAnomaly !== null && (
-                                <div>
-                                    <div className="text-xs text-muted-foreground">vs. Pre-industrial</div>
-                                    <div className={`text-2xl font-bold ${temperatureAnomaly > 0 ? 'text-accent' : 'text-primary'}`}>
-                                        {temperatureAnomaly > 0 ? '+' : ''}{temperatureAnomaly.toFixed(2)}°C
-                                    </div>
-                                </div>
-                            )}
-                        </CardContent>
-                    </>
-                )}
-            </Card>
-        </div>
-      </header>
+      {/* Main content area for Map and Footer */}
+      <div className={`relative h-full flex-grow transition-all duration-300 ease-in-out ${isPanelOpen ? 'w-[calc(100%-320px)]' : 'w-full'}`}>
+        <MapComponent regionTemperatureData={temperatureData} />
 
-      <footer className="absolute bottom-0 left-0 w-full p-4 z-20">
-        <Card className="max-w-4xl mx-auto bg-card/80 backdrop-blur-sm">
-          <CardContent className="p-4 flex flex-col md:flex-row items-center gap-6">
-            {isInitialLoading || !selectedYear || years.length === 0 ? (
-              <div className="w-full h-10 flex items-center justify-center text-muted-foreground">
-                Loading data...
-              </div>
-            ) : (
-              <>
-                <YearSlider
-                  years={years}
-                  value={selectedYear}
-                  onValueChange={handleYearChange}
-                  onValueCommit={handleYearChange}
-                  isLoading={isDataLoading}
-                  isPlaying={isPlaying}
-                  onTogglePlay={togglePlay}
-                />
-                <div className="flex items-center gap-2">
-                    <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        onClick={handleReset}
-                        disabled={isDataLoading || !years.includes(CURRENT_YEAR)}
-                        className="h-10 w-10 shrink-0"
-                    >
-                        <RotateCcw className="h-5 w-5" />
-                        <span className="sr-only">Reset to current year</span>
-                    </Button>
-                    <TemperatureLegend />
+        {/* Footer for Year Slider */}
+        <footer className="absolute bottom-0 left-0 w-full p-4 z-20">
+          <Card className="max-w-4xl mx-auto bg-card/80 backdrop-blur-sm">
+            <CardContent className="p-4 flex flex-col md:flex-row items-center gap-6">
+              {isInitialLoading || !selectedYear || years.length === 0 ? (
+                <div className="w-full h-10 flex items-center justify-center text-muted-foreground">
+                  Loading data...
                 </div>
-              </>
-            )}
-          </CardContent>
-        </Card>
-      </footer>
+              ) : (
+                <>
+                  <YearSlider
+                    years={years}
+                    value={selectedYear}
+                    onValueChange={handleYearChange}
+                    onValueCommit={handleYearChange}
+                    isLoading={isDataLoading}
+                    isPlaying={isPlaying}
+                    onTogglePlay={togglePlay}
+                  />
+                  <div className="flex items-center gap-2">
+                      <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={handleReset}
+                          disabled={!years.includes(CURRENT_YEAR)}
+                          className="h-10 w-10 shrink-0"
+                      >
+                          <RotateCcw className="h-5 w-5" />
+                          <span className="sr-only">Reset to current year</span>
+                      </Button>
+                      <TemperatureLegend />
+                  </div>
+                </>
+              )}
+            </CardContent>
+          </Card>
+        </footer>
+      </div>
+
+      {/* Toggle Button for Sidebar */}
+      <Button
+        variant="outline"
+        size="icon"
+        onClick={() => setIsPanelOpen(!isPanelOpen)}
+        className={cn(
+          "absolute top-1/2 -translate-y-1/2 z-30", // Position vertically centered
+          "h-16 w-8 rounded-l-lg rounded-r-none", // Tab-like shape, increased height
+          "bg-card/70 backdrop-blur-sm", // Increased transparency
+          "transition-all duration-300 ease-in-out",
+          isPanelOpen ? "right-[320px]" : "right-0" // Position based on sidebar state
+        )}
+      >
+        <PanelRightOpen className={`transition-transform duration-300 ${isPanelOpen ? 'rotate-180' : ''}`} />
+        <span className="sr-only">Toggle Controls</span>
+      </Button>
+
+      {/* Sidebar for Controls */}
+      <aside className={`h-full bg-card/70 backdrop-blur-sm transition-all duration-300 ease-in-out ${isPanelOpen ? 'w-[320px]' : 'w-0 overflow-hidden'}`}>
+        <div className="flex flex-col h-full p-4 md:p-6">
+          <Card className="flex-grow w-full max-w-none bg-transparent shadow-none border-none">
+              <CardHeader className="p-0">
+                  <Label className="text-xs font-normal text-muted-foreground">Selected Shared Socioeconomic Pathway:</Label>
+                  <Select value={selectedScenario} onValueChange={handleScenarioChange}>
+                      <SelectTrigger className="mt-1">
+                          <SelectValue placeholder="Select a scenario" />
+                      </SelectTrigger>
+                      <SelectContent>
+                          {SCENARIOS.map((scenario) => (
+                              <SelectItem key={scenario.id} value={scenario.id}>
+                                  {scenario.name}
+                              </SelectItem>
+                          ))}
+                      </SelectContent>
+                  </Select>
+              </CardHeader>
+              <CardContent className="p-0 pt-4">
+                {selectedScenarioData && (
+                  <CardDescription className="text-xs">
+                    {selectedScenarioData.description}
+                  </CardDescription>
+                )}
+              </CardContent>
+              {(globalAverageTemp !== null || temperatureAnomaly !== null) && (
+                  <>
+                      <Separator className="my-4" />
+                      <CardContent className="p-0 grid grid-cols-2 gap-4">
+                          {globalAverageTemp !== null && (
+                              <div>
+                                  <div className="text-xs text-muted-foreground">Global Mean Temp.</div>
+                                  <div className="text-2xl font-bold text-card-foreground">
+                                      {globalAverageTemp.toFixed(2)}°C
+                                  </div>
+                              </div>
+                          )}
+                          {temperatureAnomaly !== null && (
+                              <div>
+                                  <div className="text-xs text-muted-foreground">vs. Pre-industrial</div>
+                                  <div className={`text-2xl font-bold ${temperatureAnomaly > 0 ? 'text-accent' : 'text-primary'}`}>
+                                      {temperatureAnomaly > 0 ? '+' : ''}{temperatureAnomaly.toFixed(2)}°C
+                                  </div>
+                              </div>
+                          )}
+                      </CardContent>
+                  </>
+              )}
+          </Card>
+        </div>
+      </aside>
     </div>
   );
 }
