@@ -52,7 +52,7 @@ function YearSlider({ years, value, onValueChange, onValueCommit, isLoading, isP
         variant="ghost" 
         size="icon" 
         onClick={onTogglePlay} 
-        disabled={isLoading || years.length === 0}
+        disabled={years.length === 0}
         className="relative h-10 w-10 shrink-0 group"
         data-playing={isPlaying}
       >
